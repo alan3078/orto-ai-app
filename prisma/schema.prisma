@@ -1,0 +1,238 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ----------------------------------------------------------------------------
+// Core Models (camelCase to match existing codebase & earlier migrations)
+// ----------------------------------------------------------------------------
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Staff {
+  id           String      @id @default(cuid())
+  employeeId   String      @unique @map("employee_id")
+  name         String
+  email        String?
+  isActive     Boolean     @default(true) @map("is_active")
+  staffGroupId String?     @map("staff_group_id")
+  staffGroup   StaffGroup? @relation(fields: [staffGroupId], references: [id])
+  shifts       Shift[]
+  // Extended attributes (FN/ADM/STF/007)
+  gender          Gender?    @map("gender")
+  monthlyMinHours Int?       @map("monthly_min_hours")
+  monthlyMaxHours Int?       @map("monthly_max_hours")
+  staffRoles      StaffRole[]
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@index([employeeId])
+  @@index([isActive])
+  @@index([staffGroupId])
+  @@map("staff")
+}
+
+// --------------------------------------------------------------------------
+// Extended Staffing & Shift Definitions (FN/ADM/STF/007)
+// --------------------------------------------------------------------------
+
+enum Gender {
+  F
+  M
+}
+
+model Role {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  order      Int         @unique
+  isActive   Boolean     @default(true) @map("is_active")
+  staffRoles StaffRole[]
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  @@map("role")
+}
+
+model StaffRole {
+  staffId    String   @map("staff_id")
+  roleId     String   @map("role_id")
+  staff      Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  @@id([staffId, roleId])
+  @@index([roleId])
+  @@map("staff_role")
+}
+
+model ShiftDefinition {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  startMinutes    Int      @map("start_minutes")
+  durationMinutes Int      @map("duration_minutes")
+  isActive        Boolean  @default(true) @map("is_active")
+  deletedAt       DateTime? @map("deleted_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("shift_definition")
+}
+
+model ShiftDefinitionAudit {
+  id              String   @id @default(cuid())
+  code            String
+  startMinutes    Int      @map("start_minutes")
+  durationMinutes Int      @map("duration_minutes")
+  deletedAt       DateTime @default(now()) @map("deleted_at")
+  deletedBy       String?  @map("deleted_by")
+  reason          String?  @map("reason")
+
+  @@map("shift_definition_audit")
+}
+
+// New StaffGroup table created with snake_case in prior migration; map fields
+model StaffGroup {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @map("description")
+  isActive    Boolean  @default(true) @map("is_active")
+
+  staff       Staff[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("staff_group")
+}
+
+model Constraint {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   // point | vertical_sum | horizontal_sum | sliding_window
+  config      Json
+  isActive    Boolean  @default(true) @map("is_active")
+  priority    Int      @default(0)
+  rosters     Roster[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@index([isActive])
+  @@map("constraint")
+}
+
+model Roster {
+  id            String       @id @default(cuid())
+  name          String
+  startDate     DateTime     @map("start_date")
+  endDate       DateTime     @map("end_date")
+  status        RosterStatus @default(PENDING)
+  shiftType     ShiftType    @default(APN) @map("shift_type")
+  solveTimeMs   Float?       @map("solve_time_ms")
+  solverStatus  String?      @map("solver_status")
+  errorMessage  String?      @db.Text @map("error_message")
+  timeSlots     Int          @map("time_slots")
+  states        Json
+  shifts        Shift[]
+  constraints   Constraint[]
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([shiftType])
+  @@map("roster")
+}
+
+enum RosterStatus {
+  PENDING
+  SOLVING
+  COMPLETED
+  FAILED
+  INFEASIBLE
+}
+
+enum ShiftType {
+  APN       // Afternoon, PM, Night (0=Off, 1=A, 2=P, 3=N)
+  DAY_NIGHT // Day and Night only (0=Off, 1=Day, 2=Night)
+}
+
+model Shift {
+  id         String   @id @default(cuid())
+  rosterId   String   @map("roster_id")
+  roster     Roster   @relation(fields: [rosterId], references: [id], onDelete: Cascade)
+  staffId    String   @map("staff_id")
+  staff      Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  timeSlot   Int      @map("time_slot")
+  state      Int
+  date       DateTime
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([rosterId, staffId, timeSlot])
+  @@index([rosterId, timeSlot])
+  @@index([staffId, date])
+  @@map("shift")
+}
+
+// ----------------------------------------------------------------------------
+// System Configuration Models
+// ----------------------------------------------------------------------------
+
+enum SystemConfigScope {
+  GLOBAL
+  ROSTER
+}
+
+model SystemConfigGroup {
+  id        Int               @id @default(autoincrement())
+  code      String            @unique // stable identifier e.g. core_global, roster_management
+  name      String
+  scope     SystemConfigScope
+  isActive  Boolean           @default(true) @map("is_active")
+  locked    Boolean           @default(false)
+  items     SystemConfigItem[]
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@index([scope])
+  @@index([isActive])
+  @@map("system_config_group")
+}
+
+model SystemConfigItem {
+  id         Int               @id @default(autoincrement())
+  groupId    Int               @map("group_id")
+  group      SystemConfigGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  key        String            // machine key within group (unique per group)
+  label      String            // human readable label
+  type       String            // semantic type e.g. nurse_safety, pattern_block
+  value      Json              // JSON value payload
+  priority   Int               @default(0)
+  isActive   Boolean           @default(true) @map("is_active")
+  locked     Boolean           @default(false)
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  @@unique([groupId, key])
+  @@index([isActive])
+  @@index([type])
+  @@map("system_config_item")
+}
