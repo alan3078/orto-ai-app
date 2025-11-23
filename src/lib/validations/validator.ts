@@ -11,7 +11,7 @@ export const ConstraintValidationResultSchema = z.object({
   constraint_name: z.string().nullable().optional(),
   status: z.enum(['PASS', 'FAIL']),
   details: z.string().nullable().optional(),
-  violations: z.array(z.record(z.any())).optional(),
+  violations: z.array(z.record(z.string(), z.any())).optional(),
 })
 
 export const ValidateResponseSchema = z.object({

@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const staff = await prisma.staff.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!staff) {
@@ -23,8 +24,9 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const body = await request.json()
     const { name, email, employeeId } = body
@@ -34,7 +36,7 @@ export async function PUT(
     }
 
     const staff = await prisma.staff.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name,
         email: email || null,
@@ -50,11 +52,12 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     await prisma.staff.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false },
     })
     return NextResponse.json({ success: true })

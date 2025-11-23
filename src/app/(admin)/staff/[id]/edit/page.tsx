@@ -10,8 +10,10 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { use } from 'react'
 
-export default function EditStaffPage({ params }: { params: { id: string } }) {
+export default function EditStaffPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -24,7 +26,7 @@ export default function EditStaffPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     async function loadStaff() {
       try {
-        const res = await fetch(`/api/staff/${params.id}`)
+        const res = await fetch(`/api/staff/${id}`)
         if (!res.ok) throw new Error('Failed to load staff')
         const staff = await res.json()
         setFormData({
@@ -42,14 +44,14 @@ export default function EditStaffPage({ params }: { params: { id: string } }) {
     }
 
     loadStaff()
-  }, [params.id, router])
+  }, [id, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
 
     try {
-      const res = await fetch(`/api/staff/${params.id}`, {
+      const res = await fetch(`/api/staff/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

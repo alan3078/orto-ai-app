@@ -13,8 +13,10 @@ import { LookupModal } from '@/components/ui/lookup-modal'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table'
 import { useQuery } from '@tanstack/react-query'
 import { Skeleton } from '@/components/ui/skeleton'
+import { use } from 'react'
 
-export default function EditUserGroupPage({ params }: { params: { id: string } }) {
+export default function EditUserGroupPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -34,7 +36,7 @@ export default function EditUserGroupPage({ params }: { params: { id: string } }
   useEffect(() => {
     async function loadGroup() {
       try {
-        const res = await fetch(`/api/staff-groups/${params.id}`)
+        const res = await fetch(`/api/staff-groups/${id}`)
         if (!res.ok) throw new Error('Failed to load group')
         const data = await res.json()
         setFormData({ name: data.name, description: data.description || '' })
@@ -49,14 +51,14 @@ export default function EditUserGroupPage({ params }: { params: { id: string } }
     }
 
     loadGroup()
-  }, [params.id, router])
+  }, [id, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
 
     try {
-      const res = await fetch(`/api/staff-groups/${params.id}`, {
+      const res = await fetch(`/api/staff-groups/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -74,7 +76,7 @@ export default function EditUserGroupPage({ params }: { params: { id: string } }
 
   async function addMembers(newMembers: any[]) {
     try {
-      const res = await fetch(`/api/staff-groups/${params.id}`, {
+      const res = await fetch(`/api/staff-groups/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ addStaffIds: newMembers.map(m => m.id) }),
@@ -175,7 +177,7 @@ export default function EditUserGroupPage({ params }: { params: { id: string } }
                                 size="sm"
                                 onClick={async () => {
                                   try {
-                                    const res = await fetch(`/api/staff-groups/${params.id}`, {
+                                    const res = await fetch(`/api/staff-groups/${id}`, {
                                       method: 'PATCH',
                                       headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({ removeStaffIds: [m.id] }),

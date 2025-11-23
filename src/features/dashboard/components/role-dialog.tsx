@@ -30,7 +30,7 @@ const roleSchema = z.object({
     .max(10, 'Name must be 10 characters or less')
     .regex(/^[A-Z0-9_]+$/, 'Name must be uppercase letters, numbers, or underscores'),
   order: z
-    .number({ invalid_type_error: 'Order must be a number' })
+    .number({ message: 'Order must be a number' })
     .int('Order must be an integer')
     .min(1, 'Order must be at least 1')
     .max(100, 'Order must be 100 or less'),

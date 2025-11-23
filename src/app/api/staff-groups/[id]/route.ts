@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const group = await prisma.staffGroup.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         staff: {
           orderBy: { name: 'asc' },
@@ -24,8 +25,9 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const body = await request.json()
     const { name, description, addStaffIds, removeStaffIds } = body as {
@@ -35,12 +37,12 @@ export async function PATCH(
       removeStaffIds?: string[]
     }
 
-    const existing = await prisma.staffGroup.findUnique({ where: { id: params.id } })
+    const existing = await prisma.staffGroup.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Group not found' }, { status: 404 })
 
     // Update group metadata
     const updatedGroup = await prisma.staffGroup.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name: name ?? existing.name,
         description: description ?? existing.description,
@@ -51,7 +53,7 @@ export async function PATCH(
     if (addStaffIds && addStaffIds.length > 0) {
       await prisma.staff.updateMany({
         where: { id: { in: addStaffIds } },
-        data: { staffGroupId: params.id },
+        data: { staffGroupId: id },
       })
     }
 
@@ -64,7 +66,7 @@ export async function PATCH(
     }
 
     const result = await prisma.staffGroup.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { staff: true },
     })
     return NextResponse.json(result)
@@ -76,10 +78,11 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
-    await prisma.staffGroup.delete({ where: { id: params.id } })
+    await prisma.staffGroup.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Failed to delete staff group:', error)
