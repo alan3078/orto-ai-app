@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sortStaff } from '@/lib/staff-sort'
 
 export async function GET(
   request: Request,
@@ -11,12 +12,16 @@ export async function GET(
       where: { id },
       include: {
         staff: {
-          orderBy: { name: 'asc' },
+          include: { staffRoles: { include: { role: true } } },
         },
       },
     })
     if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 })
-    return NextResponse.json(group)
+    const sorted = {
+      ...group,
+      staff: sortStaff(group.staff as any),
+    }
+    return NextResponse.json(sorted)
   } catch (error) {
     console.error('Failed to fetch staff group:', error)
     return NextResponse.json({ error: 'Failed to fetch staff group' }, { status: 500 })

@@ -429,3 +429,15 @@ RESET_SYSTEM_CONFIG=true npx prisma db seed
 
 # Note: The seed file uses APN shift type (states: 0=Off, 1=Afternoon, 2=PM, 3=Night)
 # Constraints are common rules applied to ALL staff, not per-employee specific
+
+---
+
+## 🔄 Quick Database Reset (One Command)
+
+Drop, recreate, migrate, and seed the database in one go:
+
+```bash
+nvm use 22 && rm -rf prisma/migrations node_modules/.prisma generated .next && npx prisma migrate reset --force && npx prisma migrate dev --name init && npx prisma generate && RESET_SYSTEM_CONFIG=true npx prisma db seed
+```
+
+⚠️ **Warning**: This will delete all data in your database!

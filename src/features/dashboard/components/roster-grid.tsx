@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, AlertTriangle, Calendar } from 'lucide-react';
 import { useRoster } from '../hooks/use-roster';
 import { StateBadge, APN_STATE_CONFIG, DAY_NIGHT_STATE_CONFIG } from './state-badge';
+import { ROSTER_GRID_COLORS } from '../constants/roster-colors';
 import { format, addDays } from 'date-fns';
 
 interface RosterGridProps {
@@ -93,8 +94,11 @@ export function RosterGrid({ month }: RosterGridProps) {
           <table className='w-full border-collapse'>
             <thead>
               <tr>
-                <th className='sticky left-0 bg-background p-3 text-left border font-medium'>
-                  Staff
+                <th className='sticky left-0 bg-background p-3 text-left border font-medium min-w-[60px]'>
+                  Rank
+                </th>
+                <th className='sticky left-[60px] bg-background p-3 text-left border font-medium min-w-[120px]'>
+                  Name
                 </th>
                 {Array.from({ length: roster.timeSlots }).map((_, i) => (
                   <th
@@ -113,16 +117,17 @@ export function RosterGrid({ month }: RosterGridProps) {
                 <tr
                   key={staff.id}
                   className='hover:bg-accent/50'>
-                  <td className='sticky left-0 bg-background p-3 font-medium border'>
-                    <div>
-                      <div className='font-medium'>{staff.name}</div>
-                      <div className='text-xs text-muted-foreground'>{staff.employeeId}</div>
-                    </div>
+                  <td className='sticky left-0 bg-background p-3 border text-sm text-muted-foreground'>
+                    {staff.rank || '-'}
+                  </td>
+                  <td className='sticky left-[60px] bg-background p-3 border'>
+                    {staff.name}
                   </td>
                   {shifts.map((shift: any, i: number) => (
                     <td
                       key={i}
-                      className='p-3 text-center border'>
+                      className='p-3 text-center border'
+                      style={shift?.isIC ? { backgroundColor: ROSTER_GRID_COLORS.LIGHT_GREEN } : undefined}>
                       {shift ? (
                         <div className='flex justify-center'>
                           <StateBadge state={shift.state} shiftType={shiftType} />
@@ -139,7 +144,7 @@ export function RosterGrid({ month }: RosterGridProps) {
         </div>
 
         {/* Legend for StateBadge icons - Dynamic based on shift type */}
-        <div className='mt-4 flex gap-6 items-center text-sm'>
+        <div className='mt-4 flex gap-6 items-center text-sm flex-wrap'>
           {shiftType === 'APN' ? (
             <>
               <div className='flex items-center gap-2'>
@@ -158,16 +163,24 @@ export function RosterGrid({ month }: RosterGridProps) {
           ) : (
             <>
               <div className='flex items-center gap-2'>
-                <StateBadge state={0} shiftType="DAY_NIGHT" /> <span>Off</span>
+                <StateBadge state={0} shiftType="DAY_NIGHT" /> <span>O: Day Off</span>
               </div>
               <div className='flex items-center gap-2'>
-                <StateBadge state={1} shiftType="DAY_NIGHT" /> <span>Day</span>
+                <StateBadge state={1} shiftType="DAY_NIGHT" /> <span>7: 7 Shift (0700-1900)</span>
               </div>
               <div className='flex items-center gap-2'>
-                <StateBadge state={2} shiftType="DAY_NIGHT" /> <span>Night</span>
+                <StateBadge state={2} shiftType="DAY_NIGHT" /> <span>E: E Shift (1900-0700)</span>
               </div>
             </>
           )}
+          {/* IC Legend */}
+          <div className='flex items-center gap-2 ml-4 pl-4 border-l'>
+            <div 
+              className='w-6 h-6 rounded border' 
+              style={{ backgroundColor: ROSTER_GRID_COLORS.LIGHT_GREEN }}
+            />
+            <span>In-Charge (IC)</span>
+          </div>
         </div>
 
         {/* Metadata */}

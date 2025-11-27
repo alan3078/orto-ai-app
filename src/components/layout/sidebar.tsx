@@ -8,7 +8,6 @@ import {
   Users, 
   UsersRound, 
   Calendar, 
-  Settings,
   ChevronLeft,
   ChevronRight,
   Sliders,
@@ -30,7 +29,6 @@ const menuItems = [
   { icon: UsersRound, label: 'Staff Groups', href: '/staff-groups' },
   { icon: Calendar, label: 'Roster Management', href: '/roster-management' },
   { icon: Sliders, label: 'System Config', href: '/config' },
-  { icon: Settings, label: 'Settings', href: '/settings' },
 ]
 
 interface SystemPolicy {

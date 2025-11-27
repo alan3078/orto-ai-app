@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Table,
   TableHeader,
@@ -24,13 +24,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Trash2, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, Globe, Target } from 'lucide-react'
 import { useConstraints, useDeleteConstraint } from '../hooks/use-constraints'
 import { AddConstraintForm } from './add-constraint-form'
 
 type ConstraintType = 'point' | 'vertical_sum' | 'ai' | null
 
-export function ConstraintBuilder() {
+interface ConstraintBuilderProps {
+  shiftType: 'APN' | 'DAY_NIGHT'
+}
+
+export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
   const { data: constraints, isLoading } = useConstraints()
   const deleteConstraint = useDeleteConstraint()
   const [formType, setFormType] = useState<ConstraintType>(null)
@@ -39,6 +43,32 @@ export function ConstraintBuilder() {
   const handleCancel = () => setFormType(null)
   const handleSuccess = () => setFormType(null)
 
+  // Filter constraints by shift type: show GLOBAL (null) + matching shiftType
+  const filteredConstraints = useMemo(() => {
+    if (!constraints) return []
+    return constraints.filter((c: any) => 
+      c.shiftType === null || c.shiftType === shiftType
+    )
+  }, [constraints, shiftType])
+
+  // Helper to render scope badge
+  const renderScopeBadge = (constraintShiftType: string | null | undefined) => {
+    if (!constraintShiftType) {
+      return (
+        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+          <Globe className="h-3 w-3 mr-1" />
+          Global
+        </Badge>
+      )
+    }
+    return (
+      <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+        <Target className="h-3 w-3 mr-1" />
+        {constraintShiftType}
+      </Badge>
+    )
+  }
+
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card>
@@ -46,6 +76,12 @@ export function ConstraintBuilder() {
           <CardTitle className="flex justify-between items-center">
             <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-70 transition-opacity">
               <span>Active Constraints</span>
+              <Badge variant="secondary" className="text-xs ml-2">
+                {shiftType === 'APN' ? 'A/P/N' : 'Day/Night'}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {filteredConstraints.length}
+              </Badge>
               <ChevronDown 
                 className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
               />
@@ -88,15 +124,16 @@ export function ConstraintBuilder() {
             <Skeleton className="h-16 w-full" />
             <Skeleton className="h-16 w-full" />
           </div>
-        ) : constraints?.length === 0 ? (
+        ) : filteredConstraints.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
-            No constraints added yet. Click "Add Rule" to create your first constraint.
+            No constraints for {shiftType} shift type. Click "Add Rule" to create a constraint.
           </p>
         ) : (
           <div className="max-h-[300px] overflow-y-auto border rounded-md">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Scope</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Name</TableHead>
@@ -105,8 +142,11 @@ export function ConstraintBuilder() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {constraints?.map((c) => (
+                {filteredConstraints.map((c: any) => (
                   <TableRow key={c.id}>
+                    <TableCell>
+                      {renderScopeBadge(c.shiftType)}
+                    </TableCell>
                     <TableCell>
                       <Badge
                         variant={c.type === 'point' ? 'secondary' : 'default'}

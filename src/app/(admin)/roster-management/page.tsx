@@ -20,6 +20,7 @@ interface StaffGroup {
 export default function RosterManagementPage() {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'))
   const [selectedStaffGroup, setSelectedStaffGroup] = useState<StaffGroup | null>(null)
+  const [shiftType, setShiftType] = useState<'APN' | 'DAY_NIGHT'>('APN')
   const { data: roster } = useRoster({ month: selectedMonth })
 
   return (
@@ -29,11 +30,13 @@ export default function RosterManagementPage() {
         <p className="text-muted-foreground">Select a staff group, manage active constraints, then view the roster.</p>
       </div>
       <StaffGroupSelector onSelect={setSelectedStaffGroup} />
-      <ConstraintBuilder />
+      <ConstraintBuilder shiftType={shiftType} />
       <RosterControls 
         selectedMonth={selectedMonth} 
         onMonthChange={setSelectedMonth}
         selectedStaffGroupId={selectedStaffGroup?.id}
+        shiftType={shiftType}
+        onShiftTypeChange={setShiftType}
       />
       <RosterGrid month={selectedMonth} />
       {roster?.id && roster.status === 'COMPLETED' && (

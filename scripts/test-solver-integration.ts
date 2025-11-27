@@ -12,6 +12,7 @@
 
 import { SolverIntegrationService } from '../src/services/solver-integration.service'
 import { prisma } from '../src/lib/prisma'
+import { sortStaff } from '../src/lib/staff-sort'
 
 async function testIntegration() {
   console.log('🧪 Testing Solver Integration Service\n')
@@ -21,10 +22,12 @@ async function testIntegration() {
     // Step 1: Fetch test data
     console.log('\n📊 Step 1: Fetching test data from database...')
     
-    const staff = await prisma.staff.findMany({ 
+    const staffRaw = await prisma.staff.findMany({ 
       where: { isActive: true },
+      include: { staffRoles: { include: { role: true } } },
       take: 5 
     })
+    const staff = sortStaff(staffRaw)
     
     const constraints = await prisma.constraint.findMany({
       where: { isActive: true }
@@ -42,7 +45,8 @@ async function testIntegration() {
     // Display staff
     console.log('\n   Staff:')
     staff.forEach((s) => {
-      console.log(`      - ${s.name} (${s.employeeId})`)
+      const roles = (s as any).staffRoles?.map((r: any) => r.role?.name).filter(Boolean) || []
+      console.log(`      - ${s.name} (${s.employeeId}) [${s.rank || 'N/A'} | ${roles.join(', ') || 'No Role'} | ${s.gender || 'N/A'}]`)
     })
 
     // Display constraints

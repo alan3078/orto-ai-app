@@ -20,6 +20,31 @@ export async function generateRosterAction(params: {
   try {
     const { name, startDate, timeSlots, staffIds, constraintIds, shiftType = 'APN' } = params
 
+    // Debug: Log incoming staff IDs
+    console.log(`[generateRosterAction] Received ${staffIds.length} staffIds:`, staffIds)
+
+    // Hard-delete any existing rosters that overlap the same month
+    const rosterStartDate = new Date(startDate)
+    const monthStart = new Date(rosterStartDate.getFullYear(), rosterStartDate.getMonth(), 1)
+    const monthEnd = new Date(rosterStartDate.getFullYear(), rosterStartDate.getMonth() + 1, 1)
+
+    const existingRosters = await prisma.roster.findMany({
+      where: {
+        startDate: { lt: monthEnd },
+        endDate: { gt: monthStart },
+      },
+      select: { id: true },
+    })
+
+    if (existingRosters.length > 0) {
+      const rosterIds = existingRosters.map((r) => r.id)
+      // Delete shifts first (cascade should handle it, but explicit for safety)
+      await prisma.shift.deleteMany({ where: { rosterId: { in: rosterIds } } })
+      // Delete rosters
+      await prisma.roster.deleteMany({ where: { id: { in: rosterIds } } })
+      console.log(`[generateRosterAction] Deleted ${existingRosters.length} existing roster(s) for month ${monthStart.toISOString().slice(0, 7)}`)
+    }
+
     // Fetch system policies and build system constraints
     const systemPolicies = await fetchSystemPolicies({
       includeGlobal: true,

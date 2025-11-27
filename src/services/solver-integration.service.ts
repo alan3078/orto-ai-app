@@ -7,6 +7,7 @@ import {
   type SolverConstraint,
 } from '@/lib/validations/solver'
 import { ValidateResponseSchema, type ValidateResponse } from '@/lib/validations/validator'
+import { ConstraintType } from '@/types/enums'
 
 /**
  * Solver Integration Service
@@ -41,14 +42,30 @@ export class SolverIntegrationService {
     shiftType: 'APN' | 'DAY_NIGHT' = 'APN'
   ): Promise<{ rosterId: string; status: string }> {
     // Step 1: Fetch staff and constraints from database
+    console.log(`[SolverIntegration] Received ${staffIds.length} staffIds to process`)
+    
     const staff = await prisma.staff.findMany({
       where: { id: { in: staffIds }, isActive: true },
       include: { staffRoles: { include: { role: true } } },
     })
 
+    console.log(`[SolverIntegration] Found ${staff.length} active staff in DB:`, staff.map(s => ({ id: s.id, employeeId: s.employeeId, name: s.name })))
+
+    // Fetch constraints filtered by shiftType:
+    // - Include constraints matching the specific shiftType (APN or DAY_NIGHT)
+    // - Include GLOBAL constraints (shiftType is null)
     const constraints = await prisma.constraint.findMany({
-      where: { id: { in: constraintIds }, isActive: true },
+      where: { 
+        id: { in: constraintIds }, 
+        isActive: true,
+        OR: [
+          { shiftType: shiftType },   // Specific to this shift type
+          { shiftType: null },        // GLOBAL constraints
+        ],
+      },
     })
+
+    console.log(`[SolverIntegration] Filtered ${constraints.length} constraints for shiftType=${shiftType} (includes GLOBAL)`)
 
     if (staff.length === 0) {
       throw new Error('No active staff found')
@@ -81,7 +98,7 @@ export class SolverIntegrationService {
       const solverResponse = await this.callSolverApi(solverRequest)
 
       // Step 5: Handle response and save results
-      await this.saveSolverResults(roster.id, staff, solverResponse, startDate, timeSlots)
+      await this.saveSolverResults(roster.id, staff, solverResponse, startDate, timeSlots, shiftType)
 
       return {
         rosterId: roster.id,
@@ -116,41 +133,41 @@ export class SolverIntegrationService {
     const solverConstraints: SolverConstraint[] = constraints.map((c) => {
       const config = c.config as Record<string, unknown>
       switch (c.type) {
-        case 'point':
+        case ConstraintType.POINT:
           return {
-            type: 'point',
+            type: ConstraintType.POINT,
             resource: config.resource as string,
             time_slot: config.time_slot as number,
             state: config.state as number,
           }
-        case 'vertical_sum':
+        case ConstraintType.VERTICAL_SUM:
           return {
-            type: 'vertical_sum',
+            type: ConstraintType.VERTICAL_SUM,
             time_slot: config.time_slot as number | 'ALL',
             target_state: config.target_state as number,
             operator: config.operator as '>=' | '<=' | '==',
             value: config.value as number,
           }
-        case 'horizontal_sum':
+        case ConstraintType.HORIZONTAL_SUM:
           return {
-            type: 'horizontal_sum',
+            type: ConstraintType.HORIZONTAL_SUM,
             resource: config.resource as string,
             time_slots: (config.time_slots as number[]) || [],
             target_state: config.target_state as number,
             operator: config.operator as '>=' | '<=' | '==',
             value: config.value as number,
           }
-        case 'sliding_window':
+        case ConstraintType.SLIDING_WINDOW:
           return {
-            type: 'sliding_window',
+            type: ConstraintType.SLIDING_WINDOW,
             resource: config.resource as string,
             work_days: config.work_days as number,
             rest_days: config.rest_days as number,
             target_state: config.target_state as number,
           }
-        case 'attribute_vertical_sum':
+        case ConstraintType.ATTRIBUTE_VERTICAL_SUM:
           return {
-            type: 'attribute_vertical_sum' as any,
+            type: ConstraintType.ATTRIBUTE_VERTICAL_SUM as any,
             time_slot: config.time_slot as number | 'ALL',
             target_state: config.target_state as number,
             operator: config.operator as '>=' | '<=' | '==',
@@ -158,21 +175,30 @@ export class SolverIntegrationService {
             attribute: config.attribute as string,
             attribute_values: config.attribute_values as string[],
           } as any
-        case 'resource_state_count':
+        case ConstraintType.RESOURCE_STATE_COUNT:
           return {
-            type: 'resource_state_count' as any,
+            type: ConstraintType.RESOURCE_STATE_COUNT as any,
             resource: config.resource as string,
             time_slots: (config.time_slots as number[]) || [],
             target_state: config.target_state as number,
             operator: config.operator as '>=' | '<=' | '==',
             value: config.value as number,
           } as any
-        case 'pattern_block':
+        case ConstraintType.PATTERN_BLOCK:
           return {
-            type: 'pattern_block' as any,
+            type: ConstraintType.PATTERN_BLOCK as any,
             pattern: config.pattern as string[],
             resources: 'ALL',
             state_mapping: config.state_mapping as Record<string, number> | undefined,
+          } as any
+        case ConstraintType.COMPOUND_ATTRIBUTE_VERTICAL_SUM:
+          return {
+            type: ConstraintType.COMPOUND_ATTRIBUTE_VERTICAL_SUM as any,
+            time_slot: config.time_slot as number | 'ALL',
+            target_state: config.target_state as number,
+            operator: config.operator as '>=' | '<=' | '==',
+            value: config.value as number,
+            attribute_filters: config.attribute_filters as Record<string, string[]>,
           } as any
         default:
           throw new Error(`Unsupported constraint type: ${c.type}`)
@@ -181,41 +207,65 @@ export class SolverIntegrationService {
 
     // Merge system constraints (already in solver format)
     const systemSolverConstraints = systemConstraints
-      .filter(sc => sc.type !== 'pattern_block') // Filter out custom types not yet supported
       .map((sc) => {
         const config = sc.config
         switch (sc.type) {
-          case 'point':
+          case ConstraintType.POINT:
             return {
-              type: 'point',
+              type: ConstraintType.POINT,
               resource: config.resource as string,
               time_slot: config.time_slot as number,
               state: config.state as number,
             }
-          case 'vertical_sum':
+          case ConstraintType.VERTICAL_SUM:
             return {
-              type: 'vertical_sum',
+              type: ConstraintType.VERTICAL_SUM,
               time_slot: config.time_slot as number | 'ALL',
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
             }
-          case 'horizontal_sum':
+          case ConstraintType.HORIZONTAL_SUM:
             return {
-              type: 'horizontal_sum',
+              type: ConstraintType.HORIZONTAL_SUM,
               resource: config.resource as string,
               time_slots: (config.time_slots as number[]) || [],
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
             }
-          case 'sliding_window':
+          case ConstraintType.SLIDING_WINDOW:
             return {
-              type: 'sliding_window',
+              type: ConstraintType.SLIDING_WINDOW,
               resource: config.resource as string,
               work_days: config.work_days as number,
               rest_days: config.rest_days as number,
               target_state: config.target_state as number,
+            }
+          case ConstraintType.RESOURCE_STATE_COUNT:
+            return {
+              type: ConstraintType.RESOURCE_STATE_COUNT,
+              resource: config.resource as string,
+              time_slots: (config.time_slots as number[]) || [],
+              target_state: config.target_state as number,
+              operator: config.operator as '>=' | '<=' | '==',
+              value: config.value as number,
+            }
+          case ConstraintType.PATTERN_BLOCK:
+            return {
+              type: ConstraintType.PATTERN_BLOCK,
+              pattern: config.pattern as string[],
+              resources: 'ALL',
+              state_mapping: config.state_mapping as Record<string, number> | undefined,
+            }
+          case ConstraintType.COMPOUND_ATTRIBUTE_VERTICAL_SUM:
+            return {
+              type: ConstraintType.COMPOUND_ATTRIBUTE_VERTICAL_SUM,
+              time_slot: config.time_slot as number | 'ALL',
+              target_state: config.target_state as number,
+              operator: config.operator as '>=' | '<=' | '==',
+              value: config.value as number,
+              attribute_filters: config.attribute_filters as Record<string, string[]>,
             }
           default:
             console.warn(`[SolverIntegration] Skipping unsupported system constraint type: ${sc.type}`)
@@ -227,9 +277,12 @@ export class SolverIntegrationService {
     const allConstraints = [...solverConstraints, ...systemSolverConstraints]
     console.log(`[SolverIntegration] Merged ${solverConstraints.length} user + ${systemSolverConstraints.length} system constraints`)
 
+    const resourceList = staff.map((s) => s.employeeId)
+    console.log(`[SolverIntegration] Building payload with ${resourceList.length} resources:`, resourceList)
+
     const payload: any = {
       config: {
-        resources: staff.map((s) => s.employeeId),
+        resources: resourceList,
         time_slots: timeSlots,
         // Use dynamic states based on shift type (APN or DAY_NIGHT)
         states,
@@ -293,15 +346,24 @@ export class SolverIntegrationService {
    */
   private async saveSolverResults(
     rosterId: string,
-    staff: Array<{ id: string; employeeId: string }>,
+    staff: Array<{ id: string; employeeId: string; staffRoles?: { role: { name: string } }[] }>,
     solverResponse: SolverResponse,
     startDate: Date,
-    timeSlots: number
+    timeSlots: number,
+    shiftType: 'APN' | 'DAY_NIGHT' = 'APN'
   ) {
     const { status, schedule, solve_time_ms, message } = solverResponse
 
     // Create employeeId -> staffId map
     const employeeIdToStaffId = new Map(staff.map((s) => [s.employeeId, s.id]))
+    
+    // Create employeeId -> hasICRole map for IC assignment
+    const employeeIdHasICRole = new Map(
+      staff.map((s) => [
+        s.employeeId, 
+        (s.staffRoles || []).some((sr) => sr.role.name === 'IC')
+      ])
+    )
 
     if (status === 'INFEASIBLE') {
       // No solution found
@@ -320,19 +382,94 @@ export class SolverIntegrationService {
       throw new Error('Solver returned success but no schedule data')
     }
 
-    // Transform schedule matrix to Shift records
+    // Debug: Log what the solver returned
+    const scheduleEmployeeIds = Object.keys(schedule)
+    console.log(`[SolverIntegration] Solver returned schedule for ${scheduleEmployeeIds.length} employees:`, scheduleEmployeeIds)
+    console.log(`[SolverIntegration] Staff map has ${staff.length} entries:`, staff.map(s => s.employeeId))
+
+    // Determine IC states based on shift type
+    // For DAY_NIGHT: Day=1, Night=2; For APN: A=1, P=2, N=3
+    const icWorkStates = shiftType === 'DAY_NIGHT' ? [1, 2] : [1, 2, 3]
+
+    // Build schedule lookup for IC assignment: timeSlot -> state -> list of employeeIds with IC role
+    const timeSlotStateICStaff: Map<number, Map<number, string[]>> = new Map()
+    for (let t = 0; t < timeSlots; t++) {
+      const stateMap = new Map<number, string[]>()
+      for (const state of icWorkStates) {
+        stateMap.set(state, [])
+      }
+      timeSlotStateICStaff.set(t, stateMap)
+    }
+
+    // Populate IC-eligible staff per time slot per state
+    for (const [employeeId, stateArray] of Object.entries(schedule)) {
+      const hasICRole = employeeIdHasICRole.get(employeeId)
+      if (!hasICRole) continue
+
+      for (let t = 0; t < timeSlots; t++) {
+        const state = stateArray[t]
+        if (icWorkStates.includes(state)) {
+          timeSlotStateICStaff.get(t)?.get(state)?.push(employeeId)
+        }
+      }
+    }
+
+    // Track IC assignments per staff for round-robin fairness
+    const icAssignmentCount = new Map<string, number>()
+    for (const employeeId of scheduleEmployeeIds) {
+      icAssignmentCount.set(employeeId, 0)
+    }
+
+    // Assign IC for each time slot and each working state (round-robin among eligible staff)
+    const icAssignments = new Map<string, Set<number>>() // employeeId -> Set of timeSlots with IC
+    for (let t = 0; t < timeSlots; t++) {
+      for (const state of icWorkStates) {
+        const eligibleStaff = timeSlotStateICStaff.get(t)?.get(state) || []
+        if (eligibleStaff.length === 0) continue
+
+        // Sort by IC assignment count for round-robin fairness
+        eligibleStaff.sort((a, b) => 
+          (icAssignmentCount.get(a) || 0) - (icAssignmentCount.get(b) || 0)
+        )
+
+        // Assign IC to the staff with fewest IC assignments
+        const selectedEmployeeId = eligibleStaff[0]
+        icAssignmentCount.set(selectedEmployeeId, (icAssignmentCount.get(selectedEmployeeId) || 0) + 1)
+        
+        if (!icAssignments.has(selectedEmployeeId)) {
+          icAssignments.set(selectedEmployeeId, new Set())
+        }
+        icAssignments.get(selectedEmployeeId)!.add(t)
+      }
+    }
+
+    console.log(`[SolverIntegration] IC assignments:`, Object.fromEntries(
+      Array.from(icAssignments.entries()).map(([emp, slots]) => [emp, Array.from(slots)])
+    ))
+
+    // Transform schedule matrix to Shift records with IC assignments
     const shifts = []
     for (const [employeeId, stateArray] of Object.entries(schedule)) {
       const staffId = employeeIdToStaffId.get(employeeId)
-      if (!staffId) continue
+      if (!staffId) {
+        console.warn(`[SolverIntegration] No staffId found for employeeId: ${employeeId}`)
+        continue
+      }
+
+      const employeeICSlots = icAssignments.get(employeeId) || new Set()
 
       for (let t = 0; t < timeSlots; t++) {
+        const state = stateArray[t]
+        // Mark as IC if this employee is assigned IC for this slot AND they are working (not OFF)
+        const isIC = employeeICSlots.has(t) && state !== 0
+        
         shifts.push({
           rosterId,
           staffId,
           timeSlot: t,
-          state: stateArray[t],
+          state,
           date: new Date(startDate.getTime() + t * 24 * 60 * 60 * 1000),
+          isIC,
         })
       }
     }
@@ -378,8 +515,9 @@ export class SolverIntegrationService {
       throw new Error(`Roster ${rosterId} has no shifts to validate`)
     }
 
-    // Step 2: Rebuild schedule matrix from shifts
+    // Step 2: Rebuild schedule matrix and IC assignments from shifts
     const schedule: Record<string, number[]> = {}
+    const icAssignments: Record<string, number[]> = {} // employeeId -> [time_slots with IC]
     const staffMap = new Map<string, string>() // staffId -> employeeId
 
     for (const shift of roster.shifts) {
@@ -388,8 +526,14 @@ export class SolverIntegrationService {
       
       if (!schedule[employeeId]) {
         schedule[employeeId] = []
+        icAssignments[employeeId] = []
       }
       schedule[employeeId][shift.timeSlot] = shift.state
+      
+      // Track IC assignments (cast to access isIC field)
+      if ((shift as any).isIC) {
+        icAssignments[employeeId].push(shift.timeSlot)
+      }
     }
 
     // Step 3: Get staff details for resource_attributes
@@ -414,6 +558,12 @@ export class SolverIntegrationService {
     // Step 4: Build validation request
     const constraintNames = roster.constraints.map((c: any) => c.name || 'Unnamed Constraint')
     
+    // Build state mapping based on shift type for summary display
+    // DAY_NIGHT: O=Off, 7=Day Shift (0700-1900), E=Night Shift (1900-0700)
+    const stateMapping = roster.shiftType === 'DAY_NIGHT'
+      ? { 'O': 0, '7': 1, 'E': 2 }
+      : { 'O': 0, 'A': 1, 'P': 2, 'N': 3 }
+    
     const validateRequest = {
       config: {
         resources: Object.keys(schedule),
@@ -423,52 +573,54 @@ export class SolverIntegrationService {
       },
       schedule,
       constraint_names: constraintNames,
+      ic_assignments: icAssignments,
+      state_mapping: stateMapping,
       constraints: roster.constraints.map((c: any) => {
         const config = c.config as Record<string, unknown>
         // Transform DB constraint to solver format (same logic as generateRoster)
         switch (c.type) {
-          case 'point':
+          case ConstraintType.POINT:
             return {
-              type: 'point',
+              type: ConstraintType.POINT,
               resource: config.resource as string,
               time_slot: config.time_slot as number,
               state: config.state as number,
             }
-          case 'vertical_sum':
+          case ConstraintType.VERTICAL_SUM:
             return {
-              type: 'vertical_sum',
+              type: ConstraintType.VERTICAL_SUM,
               time_slot: config.time_slot as number | 'ALL',
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
             }
-          case 'horizontal_sum':
+          case ConstraintType.HORIZONTAL_SUM:
             return {
-              type: 'horizontal_sum',
+              type: ConstraintType.HORIZONTAL_SUM,
               resource: config.resource as string,
               time_slots: config.time_slots as number[],
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
             }
-          case 'sliding_window':
+          case ConstraintType.SLIDING_WINDOW:
             return {
-              type: 'sliding_window',
+              type: ConstraintType.SLIDING_WINDOW,
               resource: config.resource as string,
               work_days: config.work_days as number,
               rest_days: config.rest_days as number,
               target_state: config.target_state as number,
             }
-          case 'pattern_block':
+          case ConstraintType.PATTERN_BLOCK:
             return {
-              type: 'pattern_block',
+              type: ConstraintType.PATTERN_BLOCK,
               pattern: config.pattern as string[],
               resources: 'ALL',
               state_mapping: config.state_mapping as Record<string, number>,
             }
-          case 'attribute_vertical_sum':
+          case ConstraintType.ATTRIBUTE_VERTICAL_SUM:
             return {
-              type: 'attribute_vertical_sum',
+              type: ConstraintType.ATTRIBUTE_VERTICAL_SUM,
               time_slot: config.time_slot as number | 'ALL',
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
@@ -476,14 +628,23 @@ export class SolverIntegrationService {
               attribute: config.attribute as string,
               attribute_values: config.attribute_values as string[],
             }
-          case 'resource_state_count':
+          case ConstraintType.RESOURCE_STATE_COUNT:
             return {
-              type: 'resource_state_count',
+              type: ConstraintType.RESOURCE_STATE_COUNT,
               resource: config.resource as string,
               time_slots: config.time_slots as number[],
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
+            }
+          case ConstraintType.COMPOUND_ATTRIBUTE_VERTICAL_SUM:
+            return {
+              type: ConstraintType.COMPOUND_ATTRIBUTE_VERTICAL_SUM,
+              time_slot: config.time_slot as number | 'ALL',
+              target_state: config.target_state as number,
+              operator: config.operator as '>=' | '<=' | '==',
+              value: config.value as number,
+              attribute_filters: config.attribute_filters as Record<string, string[]>,
             }
           default:
             throw new Error(`Unsupported constraint type: ${c.type}`)

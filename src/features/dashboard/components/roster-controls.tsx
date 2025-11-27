@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -21,24 +20,35 @@ interface RosterControlsProps {
   selectedMonth: string;
   onMonthChange: (month: string) => void;
   selectedStaffGroupId?: string;
+  shiftType: 'APN' | 'DAY_NIGHT';
+  onShiftTypeChange: (shiftType: 'APN' | 'DAY_NIGHT') => void;
 }
 
 export function RosterControls({
   selectedMonth,
   onMonthChange,
   selectedStaffGroupId,
+  shiftType,
+  onShiftTypeChange,
 }: RosterControlsProps) {
   const { data: staff } = useStaff();
   const { data: constraints } = useConstraints();
   const generateRoster = useGenerateRoster();
   const { data: roster } = useRoster({ month: selectedMonth });
-  const [shiftType, setShiftType] = useState<'APN' | 'DAY_NIGHT'>('APN');
 
   // Filter staff by selected staff group
   const filteredStaff = staff?.filter((s: any) => {
     if (!selectedStaffGroupId) return true; // No filter, include all staff
     return s.staffGroupId === selectedStaffGroupId;
   });
+
+  // Debug logging
+  console.log('[RosterControls] Total staff from useStaff:', staff?.length);
+  console.log('[RosterControls] selectedStaffGroupId:', selectedStaffGroupId);
+  console.log('[RosterControls] Filtered staff count:', filteredStaff?.length);
+  if (staff?.length && staff.length > 0) {
+    console.log('[RosterControls] Staff sample:', staff.slice(0, 3).map((s: any) => ({ id: s.id, name: s.name, staffGroupId: s.staffGroupId })));
+  }
 
   // Generate list of last 3 months for selector
   const months = Array.from({ length: 3 }, (_, i) => {
@@ -136,7 +146,7 @@ export function RosterControls({
           </Label>
           <Select
             value={shiftType}
-            onValueChange={(value) => setShiftType(value as 'APN' | 'DAY_NIGHT')}>
+            onValueChange={(value) => onShiftTypeChange(value as 'APN' | 'DAY_NIGHT')}>
             <SelectTrigger
               id='shift-type'
               className='w-[200px]'>

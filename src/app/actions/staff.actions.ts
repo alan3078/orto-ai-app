@@ -2,22 +2,40 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { sortStaff } from '@/lib/staff-sort'
+import type { Gender } from '@prisma/client'
 
 /**
  * Get all active staff members with roles (FN/ADM/STF/007)
  */
 export async function getStaffAction() {
   try {
-    const staff = await prisma.staff.findMany({
+    const staffRaw = await prisma.staff.findMany({
       where: { isActive: true },
-      include: {
+      select: {
+        id: true,
+        employeeId: true,
+        name: true,
+        rank: true,
+        email: true,
+        isActive: true,
+        staffGroupId: true,
+        gender: true,
+        monthlyMinHours: true,
+        monthlyMaxHours: true,
+        createdAt: true,
+        updatedAt: true,
         staffRoles: {
           include: { role: true },
           orderBy: { role: { order: 'asc' } },
         },
+        staffGroup: {
+          select: { id: true, name: true },
+        },
       },
-      orderBy: { name: 'asc' },
     })
+    const staff = sortStaff(staffRaw as any)
+    console.log(`[getStaffAction] Returning ${staff.length} staff members (sorted)`)
     return { success: true as const, staff }
   } catch (error) {
     return {
@@ -33,9 +51,10 @@ export async function getStaffAction() {
  */
 export async function createStaffAction(data: {
   name: string
+  rank?: string
   employeeId: string
   email?: string
-  gender?: 'F' | 'M'
+  gender?: Gender
   roleIds?: string[]
   monthlyMinHours?: number
   monthlyMaxHours?: number
@@ -57,6 +76,7 @@ export async function createStaffAction(data: {
     const staff = await prisma.staff.create({
       data: {
         name: data.name,
+        rank: data.rank || null,
         employeeId: data.employeeId,
         email: data.email || null,
         gender: data.gender || null,

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Gender } from '@prisma/client'
 
 // ============================================================================
 // Staff Schemas
@@ -6,12 +7,13 @@ import { z } from 'zod'
 
 export const createStaffSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  rank: z.string().optional(),
   employeeId: z
     .string()
     .regex(/^[A-Z0-9]{3,20}$/, 'Employee ID must be 3-20 uppercase alphanumeric characters'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   // FN/ADM/STF/007 - Extended attributes
-  gender: z.enum(['F', 'M']).optional(),
+  gender: z.nativeEnum(Gender).optional(),
   roleIds: z.array(z.string()).optional(),
   monthlyMinHours: z.number().int().min(0).optional(),
   monthlyMaxHours: z.number().int().min(0).optional(),

@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sortStaff } from '@/lib/staff-sort'
 
 export async function GET() {
   try {
     const staff = await prisma.staff.findMany({
       where: { isActive: true },
-      orderBy: { name: 'asc' },
+      include: { staffRoles: { include: { role: true } } },
     })
-    return NextResponse.json(staff)
+
+    const sorted = sortStaff(staff)
+    return NextResponse.json(sorted)
   } catch (error) {
     console.error('Failed to fetch staff:', error)
     return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 })

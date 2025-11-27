@@ -20,6 +20,7 @@ model Staff {
   id           String      @id @default(cuid())
   employeeId   String      @unique @map("employee_id")
   name         String
+  rank         String?     // SNO, SRN, RN, RN-CW, etc.
   email        String?
   isActive     Boolean     @default(true) @map("is_active")
   staffGroupId String?     @map("staff_group_id")
@@ -36,6 +37,7 @@ model Staff {
   @@index([employeeId])
   @@index([isActive])
   @@index([staffGroupId])
+  @@index([rank])
   @@map("staff")
 }
 
@@ -114,19 +116,21 @@ model StaffGroup {
 }
 
 model Constraint {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
   description String?
-  type        String   // point | vertical_sum | horizontal_sum | sliding_window
+  type        String     // point | vertical_sum | horizontal_sum | sliding_window
   config      Json
-  isActive    Boolean  @default(true) @map("is_active")
-  priority    Int      @default(0)
+  isActive    Boolean    @default(true) @map("is_active")
+  priority    Int        @default(0)
+  shiftType   ShiftType? @map("shift_type") // null = GLOBAL (applies to all), APN or DAY_NIGHT = specific
   rosters     Roster[]
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
 
   @@index([type])
   @@index([isActive])
+  @@index([shiftType])
   @@map("constraint")
 }
 
@@ -176,6 +180,7 @@ model Shift {
   state      Int
   date       DateTime
   notes      String?
+  isIC       Boolean  @default(false) @map("is_ic")
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@unique([rosterId, staffId, timeSlot])

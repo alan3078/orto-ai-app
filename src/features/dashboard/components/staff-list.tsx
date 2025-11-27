@@ -22,6 +22,7 @@ export function StaffList() {
     return staff.filter(s =>
       s.name.toLowerCase().includes(q) ||
       (s.employeeId || '').toLowerCase().includes(q) ||
+      (s.rank || '').toLowerCase().includes(q) ||
       (s.email || '').toLowerCase().includes(q)
     )
   }, [staff, query])
@@ -67,6 +68,7 @@ export function StaffList() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Rank</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Employee ID</TableHead>
                   <TableHead>Gender</TableHead>
@@ -78,11 +80,12 @@ export function StaffList() {
               <TableBody>
                 {filtered.map(s => (
                   <TableRow key={s.id}>
+                    <TableCell className="font-medium text-muted-foreground">{s.rank || '—'}</TableCell>
                     <TableCell className="font-medium">{s.name}</TableCell>
                     <TableCell>{s.employeeId}</TableCell>
                     <TableCell>{s.gender || '—'}</TableCell>
                     <TableCell>
-                      {(s as any).staffRoles?.map((sr: any) => sr.role.name).join(', ') || '—'}
+                      {s.staffRoles?.map(sr => sr.role.name).join(', ') || '—'}
                     </TableCell>
                     <TableCell>{s.email}</TableCell>
                     <TableCell className="text-right">

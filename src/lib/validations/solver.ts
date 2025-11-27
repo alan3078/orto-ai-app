@@ -62,6 +62,15 @@ export const ResourceStateCountConstraintSchema = z.object({
   value: z.number().nonnegative(),
 })
 
+export const CompoundAttributeVerticalSumConstraintSchema = z.object({
+  type: z.literal('compound_attribute_vertical_sum'),
+  time_slot: z.union([z.number().nonnegative(), z.literal('ALL')]),
+  target_state: z.number().nonnegative(),
+  operator: z.enum(['>=', '<=', '==']),
+  value: z.number().nonnegative(),
+  attribute_filters: z.record(z.string(), z.array(z.string())),
+})
+
 export const PatternBlockConstraintSchema = z.object({
   type: z.literal('pattern_block'),
   pattern: z.array(z.string()).length(2),
@@ -76,12 +85,13 @@ export const SolverConstraintSchema = z.union([
   SlidingWindowConstraintSchema,
   AttributeVerticalSumConstraintSchema,
   ResourceStateCountConstraintSchema,
+  CompoundAttributeVerticalSumConstraintSchema,
   PatternBlockConstraintSchema,
 ])
 
 export const SolverResponseSchema = z.object({
   status: z.enum(['OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'ERROR']),
-  schedule: z.record(z.string(), z.array(z.number())).optional(),
+  schedule: z.record(z.string(), z.array(z.number())).nullable().optional(),
   message: z.string().optional(),
   solve_time_ms: z.number().optional(),
 })
@@ -93,6 +103,7 @@ export type HorizontalSumConstraint = z.infer<typeof HorizontalSumConstraintSche
 export type SlidingWindowConstraint = z.infer<typeof SlidingWindowConstraintSchema>
 export type AttributeVerticalSumConstraint = z.infer<typeof AttributeVerticalSumConstraintSchema>
 export type ResourceStateCountConstraint = z.infer<typeof ResourceStateCountConstraintSchema>
+export type CompoundAttributeVerticalSumConstraint = z.infer<typeof CompoundAttributeVerticalSumConstraintSchema>
 export type PatternBlockConstraint = z.infer<typeof PatternBlockConstraintSchema>
 export type SolverConstraint = z.infer<typeof SolverConstraintSchema>
 export type SolverResponse = z.infer<typeof SolverResponseSchema>

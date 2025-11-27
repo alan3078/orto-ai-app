@@ -1,20 +1,22 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { Gender } from '@prisma/client'
 import { toast } from 'sonner'
 import { getStaffAction, createStaffAction, deleteStaffAction } from '@/app/actions/staff.actions'
 import { staffKeys } from '../services/dashboard.service'
+import type { Staff } from '@/types/staff'
 
 /**
  * Hook to fetch all active staff members
  */
 export function useStaff() {
-  return useQuery({
+  return useQuery<Staff[]>({
     queryKey: staffKeys.all,
     queryFn: async () => {
       const result = await getStaffAction()
       if (!result.success) throw new Error(result.error)
-      return result.staff
+      return result.staff as Staff[]
     },
     staleTime: 0, // Always fetch fresh data after mutations
   })
@@ -29,9 +31,10 @@ export function useAddStaff() {
   return useMutation({
     mutationFn: async (data: {
       name: string
+      rank?: string
       employeeId: string
       email?: string
-      gender?: 'F' | 'M'
+      gender?: Gender
       roleIds?: string[]
       monthlyMinHours?: number
       monthlyMaxHours?: number
@@ -45,26 +48,35 @@ export function useAddStaff() {
       await queryClient.cancelQueries({ queryKey: staffKeys.all })
 
       // Snapshot the previous value
-      const previous = queryClient.getQueryData(staffKeys.all)
+      const previous = queryClient.getQueryData<Staff[]>(staffKeys.all)
 
       // Optimistically update to the new value
-      queryClient.setQueryData(staffKeys.all, (old: any[]) => {
+      queryClient.setQueryData<Staff[]>(staffKeys.all, (old) => {
         if (!old) return old
         return [
           ...old,
           {
-            ...newStaff,
             id: 'temp-' + Date.now(),
+            employeeId: newStaff.employeeId,
+            name: newStaff.name,
+            rank: newStaff.rank || null,
+            email: newStaff.email || null,
             isActive: true,
+            staffGroupId: null,
+            gender: newStaff.gender || null,
+            monthlyMinHours: newStaff.monthlyMinHours || null,
+            monthlyMaxHours: newStaff.monthlyMaxHours || null,
             createdAt: new Date(),
             updatedAt: new Date(),
+            staffRoles: [],
+            staffGroup: null,
           },
         ]
       })
 
       return { previous }
     },
-    onError: (err, newStaff, context) => {
+    onError: (err, _newStaff, context) => {
       // Rollback on error
       if (context?.previous) {
         queryClient.setQueryData(staffKeys.all, context.previous)

@@ -48,6 +48,7 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     resolver: zodResolver(createStaffSchema),
     defaultValues: {
       name: '',
+      rank: '',
       employeeId: '',
       email: '',
       gender: undefined,
@@ -107,6 +108,30 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
                   <FormControl>
                     <Input placeholder="John Doe" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="rank"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rank (Optional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select rank" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="SNO">SNO</SelectItem>
+                      <SelectItem value="SRN">SRN</SelectItem>
+                      <SelectItem value="RN">RN</SelectItem>
+                      <SelectItem value="RN-CW">RN-CW</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

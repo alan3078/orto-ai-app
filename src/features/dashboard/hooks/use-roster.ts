@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { generateRosterAction, getRosterAction } from '@/app/actions/generate-roster.action'
 import { rosterKeys } from '../services/dashboard.service'
@@ -45,8 +46,8 @@ export function useGenerateRoster() {
       return result
     },
     onSuccess: (data, variables) => {
-      // Extract month from startDate (YYYY-MM format)
-      const month = variables.startDate.substring(0, 7)
+      // Derive month in local time to avoid timezone drift (e.g. UTC ISO strings can shift back a day)
+      const month = format(new Date(variables.startDate), 'yyyy-MM')
       queryClient.invalidateQueries({ queryKey: rosterKeys.month(month) })
       toast.success('Roster generation started!')
     },

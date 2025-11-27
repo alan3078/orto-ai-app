@@ -11,21 +11,11 @@ CREATE TYPE "ShiftType" AS ENUM ('APN', 'DAY_NIGHT');
 CREATE TYPE "SystemConfigScope" AS ENUM ('GLOBAL', 'ROSTER');
 
 -- CreateTable
-CREATE TABLE "User" (
-    "id" SERIAL NOT NULL,
-    "email" TEXT NOT NULL,
-    "name" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "staff" (
     "id" TEXT NOT NULL,
     "employee_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "rank" TEXT,
     "email" TEXT,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "staff_group_id" TEXT,
@@ -107,6 +97,7 @@ CREATE TABLE "constraint" (
     "config" JSONB NOT NULL,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "priority" INTEGER NOT NULL DEFAULT 0,
+    "shift_type" "ShiftType",
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -141,6 +132,7 @@ CREATE TABLE "shift" (
     "state" INTEGER NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
     "notes" TEXT,
+    "is_ic" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "shift_pkey" PRIMARY KEY ("id")
@@ -186,9 +178,6 @@ CREATE TABLE "_ConstraintToRoster" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
-
--- CreateIndex
 CREATE UNIQUE INDEX "staff_employee_id_key" ON "staff"("employee_id");
 
 -- CreateIndex
@@ -199,6 +188,9 @@ CREATE INDEX "staff_is_active_idx" ON "staff"("is_active");
 
 -- CreateIndex
 CREATE INDEX "staff_staff_group_id_idx" ON "staff"("staff_group_id");
+
+-- CreateIndex
+CREATE INDEX "staff_rank_idx" ON "staff"("rank");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "role_name_key" ON "role"("name");
@@ -220,6 +212,9 @@ CREATE INDEX "constraint_type_idx" ON "constraint"("type");
 
 -- CreateIndex
 CREATE INDEX "constraint_is_active_idx" ON "constraint"("is_active");
+
+-- CreateIndex
+CREATE INDEX "constraint_shift_type_idx" ON "constraint"("shift_type");
 
 -- CreateIndex
 CREATE INDEX "roster_status_idx" ON "roster"("status");
