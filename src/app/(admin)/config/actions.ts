@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { ShiftType } from '@/types/enums'
 
 export async function getSystemConfigGroupsAction() {
   try {
@@ -115,6 +116,89 @@ export async function toggleSystemConfigItemAction(params: { itemId: number }) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+// ============================================================================
+// Shift Type Configuration Actions
+// ============================================================================
+
+export async function getShiftTypeConfigsAction() {
+  try {
+    const configs = await prisma.shiftTypeConfig.findMany({
+      orderBy: { shiftType: 'asc' },
+    })
+
+    return { success: true, configs }
+  } catch (error) {
+    console.error('[ShiftTypeConfig] Failed to fetch configs:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      configs: [],
+    }
+  }
+}
+
+export async function updateShiftTypeConfigAction(params: {
+  id: string
+  minHoursPerMonth: number
+  maxHoursPerMonth: number
+}) {
+  try {
+    const { id, minHoursPerMonth, maxHoursPerMonth } = params
+
+    // Validate hours
+    if (minHoursPerMonth < 0 || maxHoursPerMonth < 0) {
+      return {
+        success: false,
+        error: 'Hours cannot be negative',
+      }
+    }
+
+    if (minHoursPerMonth > maxHoursPerMonth) {
+      return {
+        success: false,
+        error: 'Minimum hours cannot exceed maximum hours',
+      }
+    }
+
+    // Update configuration
+    await prisma.shiftTypeConfig.update({
+      where: { id },
+      data: {
+        minHoursPerMonth,
+        maxHoursPerMonth,
+      },
+    })
+
+    revalidatePath('/admin/config')
+    revalidatePath('/admin/config/shift-settings')
+
+    return { success: true }
+  } catch (error) {
+    console.error('[ShiftTypeConfig] Failed to update config:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+export async function getShiftTypeConfigByTypeAction(shiftType: ShiftType) {
+  try {
+    const config = await prisma.shiftTypeConfig.findUnique({
+      where: { shiftType },
+    })
+
+    return { success: true, config }
+  } catch (error) {
+    console.error('[ShiftTypeConfig] Failed to fetch config:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      config: null,
     }
   }
 }

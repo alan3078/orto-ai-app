@@ -167,7 +167,22 @@ enum RosterStatus {
 
 enum ShiftType {
   APN       // Afternoon, PM, Night (0=Off, 1=A, 2=P, 3=N)
-  DAY_NIGHT // Day and Night only (0=Off, 1=Day, 2=Night)
+  SEVEN_E   // 7E: Day (7) and Night (E) 12h shifts (0=Off, 1=7, 2=E)
+}
+
+// Configuration settings for each shift type (min/max working hours, etc.)
+model ShiftTypeConfig {
+  id            String    @id @default(cuid())
+  shiftType     ShiftType @unique @map("shift_type")
+  name          String    // Human-readable name (e.g., "APN Shift", "Day/Night Shift")
+  description   String?
+  minHoursPerMonth Int    @default(160) @map("min_hours_per_month")  // Minimum working hours per month
+  maxHoursPerMonth Int    @default(190) @map("max_hours_per_month")  // Maximum working hours per month
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("shift_type_config")
 }
 
 model Shift {

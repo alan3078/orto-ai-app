@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { getCurrentMonthISO } from '@/lib/date-time.utils'
+import { ShiftType } from '@/types/enums'
 import { StaffGroupSelector } from '@/features/dashboard/components/staff-group-selector'
 import { ConstraintBuilder } from '@/features/dashboard/components/constraint-builder'
 import { RosterControls } from '@/features/dashboard/components/roster-controls'
@@ -18,9 +19,9 @@ interface StaffGroup {
 }
 
 export default function RosterManagementPage() {
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'))
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthISO())
   const [selectedStaffGroup, setSelectedStaffGroup] = useState<StaffGroup | null>(null)
-  const [shiftType, setShiftType] = useState<'APN' | 'DAY_NIGHT'>('APN')
+  const [shiftType, setShiftType] = useState<ShiftType>(ShiftType.APN)
   const { data: roster } = useRoster({ month: selectedMonth })
 
   return (

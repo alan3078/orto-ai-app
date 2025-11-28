@@ -3,7 +3,14 @@
 import { SolverIntegrationService } from '@/services/solver-integration.service'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { fetchSystemPolicies, buildSystemConstraints, buildResourceAttributes } from '@/features/engine/mapper'
+import { 
+  fetchSystemPolicies, 
+  buildSystemConstraints, 
+  buildResourceAttributes,
+  fetchShiftTypeHoursConfig,
+  buildWorkingHoursConstraints,
+} from '@/features/engine/mapper'
+import { ShiftType } from '@/types/enums'
 
 /**
  * Server Action to generate a new roster
@@ -15,10 +22,10 @@ export async function generateRosterAction(params: {
   timeSlots: number
   staffIds: string[]
   constraintIds: string[]
-  shiftType?: 'APN' | 'DAY_NIGHT'
+  shiftType?: ShiftType
 }) {
   try {
-    const { name, startDate, timeSlots, staffIds, constraintIds, shiftType = 'APN' } = params
+    const { name, startDate, timeSlots, staffIds, constraintIds, shiftType = ShiftType.APN } = params
 
     // Debug: Log incoming staff IDs
     console.log(`[generateRosterAction] Received ${staffIds.length} staffIds:`, staffIds)
@@ -66,9 +73,19 @@ export async function generateRosterAction(params: {
 
     // Determine available states based on shift type
     // APN: 0=Off, 1=Afternoon, 2=PM, 3=Night
-    // DAY_NIGHT: 0=Off, 1=Day, 2=Night
-    const availableStates = shiftType === 'APN' ? [0, 1, 2, 3] : [0, 1, 2]
+    // SEVEN_E: 0=Off, 1=Day (7), 2=Night (E)
+    const availableStates = shiftType === ShiftType.APN ? [0, 1, 2, 3] : [0, 1, 2]
     const systemConstraints = await buildSystemConstraints(systemPolicies, staff, availableStates)
+
+    // Fetch shift type config and build working hours constraints dynamically
+    const hoursConfig = await fetchShiftTypeHoursConfig(shiftType)
+    let workingHoursConstraints: Awaited<ReturnType<typeof buildWorkingHoursConstraints>> = []
+    if (hoursConfig) {
+      workingHoursConstraints = buildWorkingHoursConstraints(hoursConfig, staff, timeSlots)
+    }
+
+    // Merge all system constraints
+    const allSystemConstraints = [...systemConstraints, ...workingHoursConstraints]
 
     // Build resource attributes (FN/ADM/STF/007)
     const resourceAttributes = buildResourceAttributes(staff)
@@ -81,7 +98,7 @@ export async function generateRosterAction(params: {
       timeSlots,
       staffIds,
       constraintIds,
-      systemConstraints,
+      allSystemConstraints,
       resourceAttributes,
       shiftType
     )

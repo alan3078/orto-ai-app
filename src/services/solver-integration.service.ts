@@ -7,7 +7,7 @@ import {
   type SolverConstraint,
 } from '@/lib/validations/solver'
 import { ValidateResponseSchema, type ValidateResponse } from '@/lib/validations/validator'
-import { ConstraintType } from '@/types/enums'
+import { ConstraintType, ShiftType } from '@/types/enums'
 
 /**
  * Solver Integration Service
@@ -29,7 +29,7 @@ export class SolverIntegrationService {
    * @param constraintIds Array of constraint IDs to apply
    * @param systemConstraints Optional array of system-derived constraints to merge
    * @param resourceAttributes Optional resource attributes map (gender, roles, monthly hours) - FN/ADM/STF/007
-   * @param shiftType Shift type configuration: APN or DAY_NIGHT
+   * @param shiftType Shift type configuration: APN or SEVEN_E (7E pattern)
    */
   async generateRoster(
     rosterName: string,
@@ -39,7 +39,7 @@ export class SolverIntegrationService {
     constraintIds: string[],
     systemConstraints: Array<{ type: string; config: Record<string, unknown> }> = [],
     resourceAttributes: Record<string, any> = {},
-    shiftType: 'APN' | 'DAY_NIGHT' = 'APN'
+    shiftType: ShiftType = ShiftType.APN
   ): Promise<{ rosterId: string; status: string }> {
     // Step 1: Fetch staff and constraints from database
     console.log(`[SolverIntegration] Received ${staffIds.length} staffIds to process`)
@@ -52,7 +52,7 @@ export class SolverIntegrationService {
     console.log(`[SolverIntegration] Found ${staff.length} active staff in DB:`, staff.map(s => ({ id: s.id, employeeId: s.employeeId, name: s.name })))
 
     // Fetch constraints filtered by shiftType:
-    // - Include constraints matching the specific shiftType (APN or DAY_NIGHT)
+    // - Include constraints matching the specific shiftType (APN or SEVEN_E)
     // - Include GLOBAL constraints (shiftType is null)
     const constraints = await prisma.constraint.findMany({
       where: { 
@@ -73,7 +73,7 @@ export class SolverIntegrationService {
 
     // Step 2: Create Roster record with SOLVING status
     // Determine states based on shift type
-    const states = shiftType === 'APN' ? [0, 1, 2, 3] : [0, 1, 2]
+    const states = shiftType === ShiftType.APN ? [0, 1, 2, 3] : [0, 1, 2]
     
     const roster = await prisma.roster.create({
       data: {
@@ -284,7 +284,7 @@ export class SolverIntegrationService {
       config: {
         resources: resourceList,
         time_slots: timeSlots,
-        // Use dynamic states based on shift type (APN or DAY_NIGHT)
+        // Use dynamic states based on shift type (APN or SEVEN_E)
         states,
         resource_attributes: Object.fromEntries(
           staff.map(s => [s.employeeId, {
@@ -350,7 +350,7 @@ export class SolverIntegrationService {
     solverResponse: SolverResponse,
     startDate: Date,
     timeSlots: number,
-    shiftType: 'APN' | 'DAY_NIGHT' = 'APN'
+    shiftType: ShiftType = ShiftType.APN
   ) {
     const { status, schedule, solve_time_ms, message } = solverResponse
 
@@ -388,8 +388,8 @@ export class SolverIntegrationService {
     console.log(`[SolverIntegration] Staff map has ${staff.length} entries:`, staff.map(s => s.employeeId))
 
     // Determine IC states based on shift type
-    // For DAY_NIGHT: Day=1, Night=2; For APN: A=1, P=2, N=3
-    const icWorkStates = shiftType === 'DAY_NIGHT' ? [1, 2] : [1, 2, 3]
+    // For SEVEN_E: 7=1, E=2; For APN: A=1, P=2, N=3
+    const icWorkStates = shiftType === ShiftType.SEVEN_E ? [1, 2] : [1, 2, 3]
 
     // Build schedule lookup for IC assignment: timeSlot -> state -> list of employeeIds with IC role
     const timeSlotStateICStaff: Map<number, Map<number, string[]>> = new Map()
@@ -559,8 +559,8 @@ export class SolverIntegrationService {
     const constraintNames = roster.constraints.map((c: any) => c.name || 'Unnamed Constraint')
     
     // Build state mapping based on shift type for summary display
-    // DAY_NIGHT: O=Off, 7=Day Shift (0700-1900), E=Night Shift (1900-0700)
-    const stateMapping = roster.shiftType === 'DAY_NIGHT'
+    // SEVEN_E: O=Off, 7=Day Shift (0700-1900), E=Night Shift (1900-0700)
+    const stateMapping = roster.shiftType === ShiftType.SEVEN_E
       ? { 'O': 0, '7': 1, 'E': 2 }
       : { 'O': 0, 'A': 1, 'P': 2, 'N': 3 }
     

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import type { SystemConfigGroup, SystemConfigItem } from '@prisma/client'
 import {
   Card,
@@ -30,7 +31,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import { Lock, Unlock, Edit } from 'lucide-react'
+import { Lock, Unlock, Edit, Clock, Settings } from 'lucide-react'
 import { updateSystemConfigItemAction, toggleSystemConfigItemAction } from './actions'
 
 type GroupWithItems = SystemConfigGroup & { items: SystemConfigItem[] }
@@ -97,6 +98,22 @@ export function SystemConfigPage({ initialGroups }: Props) {
         <p className="text-muted-foreground mt-2">
           Manage global and roster-specific scheduling policies
         </p>
+      </div>
+
+      {/* Config Navigation Tabs */}
+      <div className="flex gap-2 border-b pb-2">
+        <Link href="/config">
+          <Button variant="default" size="sm" className="gap-2">
+            <Settings className="h-4 w-4" />
+            Scheduling Policies
+          </Button>
+        </Link>
+        <Link href="/config/shift-settings">
+          <Button variant="outline" size="sm" className="gap-2">
+            <Clock className="h-4 w-4" />
+            Shift Settings
+          </Button>
+        </Link>
       </div>
 
       {/* Global Policies */}

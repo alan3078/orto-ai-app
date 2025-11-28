@@ -5,9 +5,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, AlertTriangle, Calendar } from 'lucide-react';
 import { useRoster } from '../hooks/use-roster';
-import { StateBadge, APN_STATE_CONFIG, DAY_NIGHT_STATE_CONFIG } from './state-badge';
+import { StateBadge, APN_STATE_CONFIG, SEVEN_E_STATE_CONFIG } from './state-badge';
 import { ROSTER_GRID_COLORS } from '../constants/roster-colors';
-import { format, addDays } from 'date-fns';
+import { addDays, formatDateShort } from '@/lib/date-time.utils';
+import { ShiftType } from '@/types/enums';
 
 interface RosterGridProps {
   month: string; // "2025-11"
@@ -84,8 +85,8 @@ export function RosterGrid({ month }: RosterGridProps) {
   }, {});
 
   // Type assertion for roster with shiftType (TypeScript may need regeneration)
-  const rosterWithShiftType = roster as typeof roster & { shiftType?: 'APN' | 'DAY_NIGHT' };
-  const shiftType = rosterWithShiftType.shiftType || 'DAY_NIGHT';
+  const rosterWithShiftType = roster as typeof roster & { shiftType?: ShiftType };
+  const shiftType = rosterWithShiftType.shiftType || ShiftType.SEVEN_E;
 
   return (
     <Card>
@@ -106,7 +107,7 @@ export function RosterGrid({ month }: RosterGridProps) {
                     className='p-3 text-center border min-w-[80px] font-medium'>
                     <div>Day {i}</div>
                     <div className='text-xs text-muted-foreground font-normal'>
-                      {format(addDays(new Date(roster.startDate), i), 'MMM d')}
+                      {formatDateShort(addDays(new Date(roster.startDate), i))}
                     </div>
                   </th>
                 ))}
@@ -145,31 +146,31 @@ export function RosterGrid({ month }: RosterGridProps) {
 
         {/* Legend for StateBadge icons - Dynamic based on shift type */}
         <div className='mt-4 flex gap-6 items-center text-sm flex-wrap'>
-          {shiftType === 'APN' ? (
+          {shiftType === ShiftType.APN ? (
             <>
               <div className='flex items-center gap-2'>
-                <StateBadge state={0} shiftType="APN" /> <span>Off</span>
+                <StateBadge state={0} shiftType={ShiftType.APN} /> <span>Off</span>
               </div>
               <div className='flex items-center gap-2'>
-                <StateBadge state={1} shiftType="APN" /> <span>Afternoon (A)</span>
+                <StateBadge state={1} shiftType={ShiftType.APN} /> <span>Afternoon (A)</span>
               </div>
               <div className='flex items-center gap-2'>
-                <StateBadge state={2} shiftType="APN" /> <span>PM (P)</span>
+                <StateBadge state={2} shiftType={ShiftType.APN} /> <span>PM (P)</span>
               </div>
               <div className='flex items-center gap-2'>
-                <StateBadge state={3} shiftType="APN" /> <span>Night (N)</span>
+                <StateBadge state={3} shiftType={ShiftType.APN} /> <span>Night (N)</span>
               </div>
             </>
           ) : (
             <>
               <div className='flex items-center gap-2'>
-                <StateBadge state={0} shiftType="DAY_NIGHT" /> <span>O: Day Off</span>
+                <StateBadge state={0} shiftType={ShiftType.SEVEN_E} /> <span>O: Day Off</span>
               </div>
               <div className='flex items-center gap-2'>
-                <StateBadge state={1} shiftType="DAY_NIGHT" /> <span>7: 7 Shift (0700-1900)</span>
+                <StateBadge state={1} shiftType={ShiftType.SEVEN_E} /> <span>7: 7 Shift (0700-1900)</span>
               </div>
               <div className='flex items-center gap-2'>
-                <StateBadge state={2} shiftType="DAY_NIGHT" /> <span>E: E Shift (1900-0700)</span>
+                <StateBadge state={2} shiftType={ShiftType.SEVEN_E} /> <span>E: E Shift (1900-0700)</span>
               </div>
             </>
           )}

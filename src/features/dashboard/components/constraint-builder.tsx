@@ -27,11 +27,12 @@ import {
 import { Plus, Trash2, ChevronDown, Globe, Target } from 'lucide-react'
 import { useConstraints, useDeleteConstraint } from '../hooks/use-constraints'
 import { AddConstraintForm } from './add-constraint-form'
+import { ShiftType } from '@/types/enums'
 
 type ConstraintType = 'point' | 'vertical_sum' | 'ai' | null
 
 interface ConstraintBuilderProps {
-  shiftType: 'APN' | 'DAY_NIGHT'
+  shiftType: ShiftType
 }
 
 export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
@@ -77,7 +78,7 @@ export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
             <CollapsibleTrigger className="flex items-center gap-2 hover:opacity-70 transition-opacity">
               <span>Active Constraints</span>
               <Badge variant="secondary" className="text-xs ml-2">
-                {shiftType === 'APN' ? 'A/P/N' : 'Day/Night'}
+                {shiftType === ShiftType.APN ? 'A/P/N' : '7E'}
               </Badge>
               <Badge variant="outline" className="text-xs">
                 {filteredConstraints.length}

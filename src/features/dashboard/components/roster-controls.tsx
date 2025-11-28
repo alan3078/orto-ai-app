@@ -12,16 +12,23 @@ import { PlayCircle, Download, Loader2, CheckCircle } from 'lucide-react';
 import { useStaff } from '../hooks/use-staff';
 import { useConstraints } from '../hooks/use-constraints';
 import { useGenerateRoster, useRoster } from '../hooks/use-roster';
-import { format, startOfMonth, getDaysInMonth, subMonths } from 'date-fns';
+import {
+  formatMonthDisplay,
+  getMonthStart,
+  getDaysInMonthFromISO,
+  getPreviousMonths,
+  generateRosterName,
+} from '@/lib/date-time.utils';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
+import { ShiftType } from '@/types/enums';
 
 interface RosterControlsProps {
   selectedMonth: string;
   onMonthChange: (month: string) => void;
   selectedStaffGroupId?: string;
-  shiftType: 'APN' | 'DAY_NIGHT';
-  onShiftTypeChange: (shiftType: 'APN' | 'DAY_NIGHT') => void;
+  shiftType: ShiftType;
+  onShiftTypeChange: (shiftType: ShiftType) => void;
 }
 
 export function RosterControls({
@@ -51,13 +58,7 @@ export function RosterControls({
   }
 
   // Generate list of last 3 months for selector
-  const months = Array.from({ length: 3 }, (_, i) => {
-    const date = subMonths(new Date(), i);
-    return {
-      value: format(date, 'yyyy-MM'),
-      label: format(date, 'MMMM yyyy'),
-    };
-  });
+  const months = getPreviousMonths(3);
 
   const handleGenerate = async () => {
     if (!filteredStaff || filteredStaff.length === 0) {
@@ -69,12 +70,12 @@ export function RosterControls({
       return;
     }
 
-    const startDate = startOfMonth(new Date(selectedMonth + '-01'));
-    const timeSlots = getDaysInMonth(startDate);
+    const startDate = getMonthStart(selectedMonth);
+    const timeSlots = getDaysInMonthFromISO(selectedMonth);
 
     try {
       await generateRoster.mutateAsync({
-        name: `Roster - ${format(startDate, 'MMMM yyyy')}`,
+        name: generateRosterName(startDate),
         startDate: startDate.toISOString(),
         timeSlots,
         staffIds: filteredStaff.map((s: any) => s.id),
@@ -91,7 +92,7 @@ export function RosterControls({
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <div className='flex items-center gap-4'>
           <h2 className='text-2xl font-bold'>
-            Roster: {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}
+            Roster: {formatMonthDisplay(selectedMonth)}
           </h2>
           <Select
             value={selectedMonth}
@@ -146,15 +147,15 @@ export function RosterControls({
           </Label>
           <Select
             value={shiftType}
-            onValueChange={(value) => onShiftTypeChange(value as 'APN' | 'DAY_NIGHT')}>
+            onValueChange={(value) => onShiftTypeChange(value as ShiftType)}>
             <SelectTrigger
               id='shift-type'
               className='w-[200px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='APN'>A/P/N (Afternoon/PM/Night)</SelectItem>
-              <SelectItem value='DAY_NIGHT'>Day/Night</SelectItem>
+              <SelectItem value={ShiftType.APN}>A/P/N (Afternoon/PM/Night)</SelectItem>
+              <SelectItem value={ShiftType.SEVEN_E}>7E (Day/Night 12h)</SelectItem>
             </SelectContent>
           </Select>
         </div>

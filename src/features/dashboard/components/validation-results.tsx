@@ -14,8 +14,9 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CheckCircle2, XCircle, Loader2, CheckCircle, Calendar, Users } from 'lucide-react'
-import { validateRosterAction } from '@/app/actions/validate-roster.action'
+import { validateRosterAction, type StaffInfo } from '@/app/actions/validate-roster.action'
 import type { ValidateResponse, ConstraintValidationResult, VerticalSummary, HorizontalSummary } from '@/lib/validations/validator'
+import { staffComparator } from '@/lib/staff-sort'
 
 interface ValidationResultsProps {
   rosterId: string
@@ -30,6 +31,7 @@ interface ValidationResultsProps {
 export function ValidationResults({ rosterId }: ValidationResultsProps) {
   const [isValidating, setIsValidating] = useState(false)
   const [result, setResult] = useState<ValidateResponse | null>(null)
+  const [staffMap, setStaffMap] = useState<Record<string, StaffInfo>>({})
   const [error, setError] = useState<string | null>(null)
 
   const handleValidate = async () => {
@@ -42,9 +44,22 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
 
     if (response.success && response.data) {
       setResult(response.data)
+      setStaffMap(response.staffMap || {})
     } else {
       setError(response.error || 'Validation failed')
     }
+  }
+
+  // Helper to get staff display name and rank
+  const getStaffDisplay = (employeeId: string) => {
+    const staff = staffMap[employeeId]
+    if (staff) {
+      return {
+        name: staff.name,
+        rank: staff.rank || '',
+      }
+    }
+    return { name: employeeId, rank: '' }
   }
 
   // Show validate button if no results yet
@@ -231,7 +246,7 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
           <Card>
             <CardHeader>
               <CardTitle>Staff Shift Summary</CardTitle>
-              <CardDescription>Total shifts assigned to each staff member</CardDescription>
+              <CardDescription>Total shifts assigned to each staff member (sorted by rank)</CardDescription>
             </CardHeader>
             <CardContent>
               {summary?.horizontal_summary && summary.horizontal_summary.length > 0 ? (
@@ -239,7 +254,8 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="sticky left-0 bg-background">Staff</TableHead>
+                        <TableHead className="sticky left-0 bg-background min-w-[150px]">Staff</TableHead>
+                        <TableHead className="text-center min-w-[60px]">Rank</TableHead>
                         {Object.keys(summary.horizontal_summary[0]?.counts || {}).map((state) => (
                           <TableHead key={state} className="text-center min-w-[80px]">
                             {state}
@@ -247,19 +263,44 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
                         ))}
                         <TableHead className="text-center min-w-[60px] bg-green-50 dark:bg-green-950">IC</TableHead>
                         <TableHead className="text-center min-w-[80px]">Total Work</TableHead>
+                        <TableHead className="text-center min-w-[100px] bg-amber-50 dark:bg-amber-950">Hours</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {summary.horizontal_summary.map((staff: HorizontalSummary) => {
+                      {/* Sort staff by rank using the staffMap */}
+                      {[...summary.horizontal_summary]
+                        .sort((a, b) => {
+                          const staffA = staffMap[a.resource]
+                          const staffB = staffMap[b.resource]
+                          if (!staffA || !staffB) return 0
+                          return staffComparator(
+                            { rank: staffA.rank, name: staffA.name },
+                            { rank: staffB.rank, name: staffB.name }
+                          )
+                        })
+                        .map((staff: HorizontalSummary) => {
                         // Calculate total work days (exclude O=Off)
                         const totalWork = Object.entries(staff.counts)
                           .filter(([state]) => state !== 'O')
                           .reduce((sum, [, count]) => sum + count, 0)
                         
+                        // Calculate working hours (12h per shift for 7E mode)
+                        const workingHours = totalWork * 12
+
+                        // Get staff display info
+                        const { name, rank } = getStaffDisplay(staff.resource)
+                        
                         return (
                           <TableRow key={staff.resource}>
                             <TableCell className="sticky left-0 bg-background font-medium">
-                              {staff.resource}
+                              {name}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {rank && (
+                                <Badge variant="outline" className="text-xs">
+                                  {rank}
+                                </Badge>
+                              )}
                             </TableCell>
                             {Object.entries(staff.counts).map(([state, count]) => (
                               <TableCell key={state} className="text-center">
@@ -284,6 +325,11 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
                             <TableCell className="text-center">
                               <Badge variant="default">
                                 {totalWork}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center bg-amber-50/50 dark:bg-amber-950/30">
+                              <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 font-mono">
+                                {workingHours}h
                               </Badge>
                             </TableCell>
                           </TableRow>

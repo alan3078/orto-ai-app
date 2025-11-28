@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { ShiftType } from '@/types/enums'
 
 /**
  * Get all active constraints with shiftType for scope display
@@ -11,7 +12,7 @@ export async function getConstraintsAction() {
     const constraints = await prisma.constraint.findMany({
       where: { isActive: true },
       orderBy: [
-        { shiftType: 'asc' }, // null (GLOBAL) first, then APN, DAY_NIGHT
+        { shiftType: 'asc' }, // null (GLOBAL) first, then APN, SEVEN_E
         { priority: 'desc' },
       ],
       select: {
@@ -46,7 +47,7 @@ export async function createConstraintAction(data: {
   config: Record<string, unknown>
   description?: string
   priority?: number
-  shiftType?: 'APN' | 'DAY_NIGHT' | null
+  shiftType?: ShiftType | null
 }) {
   try {
     const constraint = await prisma.constraint.create({ 

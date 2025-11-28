@@ -18,6 +18,17 @@ export enum RoleName {
 }
 
 /**
+ * Shift type patterns supported by the scheduler
+ * Note: This mirrors the Prisma ShiftType enum but is available without Prisma client
+ */
+export enum ShiftType {
+  /** Afternoon, PM, Night pattern (0=Off, 1=A, 2=P, 3=N) - 8.5h shifts */
+  APN = 'APN',
+  /** 7E pattern: Day (7) and Night (E) 12h shifts (0=Off, 1=7, 2=E) */
+  SEVEN_E = 'SEVEN_E',
+}
+
+/**
  * Constraint types supported by the solver engine
  * Used for roster generation and validation
  */

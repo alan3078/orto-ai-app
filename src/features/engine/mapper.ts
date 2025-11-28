@@ -5,6 +5,7 @@
 
 import { prisma } from '@/lib/prisma'
 import type { SystemConfigScope } from '@prisma/client'
+import { ShiftType } from '@/types/enums'
 
 export interface SystemPolicy {
   id: number
@@ -24,6 +25,13 @@ export interface SystemConstraint {
   config: Record<string, unknown>
   priority: number
   source: 'system'
+}
+
+export interface ShiftTypeHoursConfig {
+  shiftType: ShiftType
+  minHoursPerMonth: number
+  maxHoursPerMonth: number
+  avgShiftDurationMinutes: number
 }
 
 interface FetchOptions {
@@ -76,6 +84,116 @@ export async function fetchSystemPolicies(
 }
 
 /**
+ * Fetch shift type configuration and calculate average shift duration.
+ * Used for dynamic working hours constraints based on shift_type_config + shift_definition.
+ * @param shiftType - The shift type to fetch config for (APN or SEVEN_E)
+ */
+export async function fetchShiftTypeHoursConfig(
+  shiftType: ShiftType
+): Promise<ShiftTypeHoursConfig | null> {
+  const config = await prisma.shiftTypeConfig.findUnique({
+    where: { shiftType },
+  })
+
+  if (!config || !config.isActive) {
+    return null
+  }
+
+  // Fetch active shift definitions filtered by shift type pattern
+  // 7E pattern uses codes '7' and 'E' (12h shifts)
+  // APN pattern uses codes 'A', 'P', 'N' (8.5h shifts)
+  const shiftCodes = shiftType === ShiftType.SEVEN_E 
+    ? ['7', 'E'] 
+    : ['A', 'P', 'N']
+  
+  const shiftDefs = await prisma.shiftDefinition.findMany({
+    where: { 
+      isActive: true, 
+      deletedAt: null,
+      code: { in: shiftCodes },
+    },
+    select: { durationMinutes: true },
+  })
+
+  if (shiftDefs.length === 0) {
+    return null
+  }
+
+  // Calculate average shift duration for this shift type
+  const totalMinutes = shiftDefs.reduce((sum, sd) => sum + sd.durationMinutes, 0)
+  const avgShiftDurationMinutes = Math.round(totalMinutes / shiftDefs.length)
+
+  return {
+    shiftType: config.shiftType as unknown as ShiftType,
+    minHoursPerMonth: config.minHoursPerMonth,
+    maxHoursPerMonth: config.maxHoursPerMonth,
+    avgShiftDurationMinutes,
+  }
+}
+
+/**
+ * Build working hours constraints from shift type config.
+ * Converts min/max hours per month to min/max shifts per staff.
+ * @param hoursConfig - Shift type hours configuration
+ * @param staffList - List of staff with employeeId
+ * @param timeSlots - Number of time slots (days) in the roster period
+ */
+export function buildWorkingHoursConstraints(
+  hoursConfig: ShiftTypeHoursConfig,
+  staffList: Array<{ employeeId: string }>,
+  timeSlots: number
+): SystemConstraint[] {
+  const constraints: SystemConstraint[] = []
+  
+  const shiftDurationHours = hoursConfig.avgShiftDurationMinutes / 60
+  
+  // Calculate min/max shifts from hours
+  // Min shifts = ceil(minHours / shiftDuration) to ensure at least minHours
+  // Max shifts = floor(maxHours / shiftDuration) to not exceed maxHours
+  const minShifts = Math.ceil(hoursConfig.minHoursPerMonth / shiftDurationHours)
+  const maxShifts = Math.floor(hoursConfig.maxHoursPerMonth / shiftDurationHours)
+  
+  // Time slots array for the entire roster period
+  const timeSlotArray = Array.from({ length: timeSlots }, (_, i) => i)
+  
+  for (const staff of staffList) {
+    // Min work constraint: max OFF days = totalSlots - minShifts
+    constraints.push({
+      name: `Working Hours Min (${staff.employeeId})`,
+      type: 'resource_state_count',
+      config: {
+        type: 'resource_state_count',
+        resource: staff.employeeId,
+        time_slots: timeSlotArray,
+        target_state: 0, // OFF state
+        operator: '<=',
+        value: timeSlots - minShifts,
+      },
+      priority: 100, // High priority for working hours
+      source: 'system',
+    })
+    
+    // Max work constraint: min OFF days = totalSlots - maxShifts
+    constraints.push({
+      name: `Working Hours Max (${staff.employeeId})`,
+      type: 'resource_state_count',
+      config: {
+        type: 'resource_state_count',
+        resource: staff.employeeId,
+        time_slots: timeSlotArray,
+        target_state: 0, // OFF state
+        operator: '>=',
+        value: timeSlots - maxShifts,
+      },
+      priority: 100, // High priority for working hours
+      source: 'system',
+    })
+  }
+  
+  return constraints
+}
+
+/**
  * Build system constraints from policies + staff list.
  * @param availableStates - Array of available states in the roster config (e.g., [0, 1] or [0, 1, 2])
  */
@@ -97,11 +215,10 @@ export async function buildSystemConstraints(
         }
       }
     } catch (err) {
-      console.warn(`[Mapper] Failed to derive constraint from policy ${policy.key}:`, err)
+      // Skip policies that fail to derive constraints
     }
   }
 
-  console.log(`[Mapper] Generated ${constraints.length} system constraints from ${policies.length} policies (states: ${availableStates})`)
   return constraints
 }
 
@@ -141,7 +258,6 @@ export function buildResourceAttributes(
     }
   }
 
-  console.log(`[Mapper] Built resource attributes for ${Object.keys(attributes).length} staff members`)
   return attributes
 }
 
@@ -157,7 +273,6 @@ function deriveConstraint(
 
   // Validate value is object
   if (typeof value !== 'object' || value === null) {
-    console.warn(`[Mapper] Policy ${key} has invalid value type; expected object`)
     return null
   }
 
@@ -171,7 +286,6 @@ function deriveConstraint(
     case 'fairness':
       return deriveFairness(key, label, val, priority, staffList, availableStates)
     default:
-      console.warn(`[Mapper] Unknown policy type: ${type}`)
       return null
   }
 }
@@ -191,33 +305,15 @@ function deriveNurseSafety(
     // Horizontal sum per staff
     const limit = typeof value.limit === 'number' ? value.limit : Number(value.limit)
     if (!Number.isFinite(limit) || limit <= 0) {
-      console.warn(`[Mapper] max_consecutive_nights has invalid limit: ${limit}`)
       return null
-    }
-
-    // Determine which state represents "night" for this roster
-    let nightState: number | null = null
-    if (typeof value.target_state === 'number') {
-      nightState = value.target_state
-    } else if (typeof (value as any).state === 'number') {
-      nightState = (value as any).state
     }
 
     if (availableStates.length === 0) {
-      console.warn('[Mapper] No available states provided; skipping max_consecutive_nights policy')
       return null
     }
 
-    if (nightState === null || !availableStates.includes(nightState)) {
-      // Fallback: prefer highest numbered state as night, else abort
-      const fallbackState = Math.max(...availableStates)
-      nightState = fallbackState
-    }
-
-    if (!availableStates.includes(nightState)) {
-      console.log(`[Mapper] Skipping max_consecutive_nights: derived night state ${nightState} not in available states ${availableStates}`)
-      return null
-    }
+    // Night is ALWAYS the max state: APN=3 (N), 7E=2 (E)
+    const nightState = Math.max(...availableStates)
 
     // Build the time slot horizon to inspect for consecutive nights
     let timeSlots: number[] | null = null
@@ -283,16 +379,9 @@ function deriveNurseSafety(
 
     const workDays = typeof value.work_days === 'number' ? value.work_days : 3
     const restDays = typeof value.rest_days === 'number' ? value.rest_days : 2
-    let nightState = typeof value.target_state === 'number' ? value.target_state : null
-
-    if (nightState === null || !availableStates.includes(nightState)) {
-      nightState = Math.max(...availableStates)
-    }
-
-    if (!availableStates.includes(nightState)) {
-      console.log(`[Mapper] Skipping post_night_rest: night state ${nightState} not in available states`)
-      return null
-    }
+    // Night is ALWAYS the max state: APN=3 (N), 7E=2 (E)
+    // Ignore seed target_state since it may not match current shift type
+    const nightState = Math.max(...availableStates)
 
     // Generate sliding_window constraint per staff
     const constraints: SystemConstraint[] = staffList.map((staff) => ({
@@ -309,7 +398,6 @@ function deriveNurseSafety(
       source: 'system',
     }))
 
-    console.log(`[Mapper] Generated ${constraints.length} post_night_rest constraints (${workDays} nights → ${restDays} days off)`)
     return constraints
   }
 
@@ -330,7 +418,6 @@ function deriveCoverage(
     const targetState = value.target_state
 
     if (typeof min !== 'number' || typeof targetState !== 'number') {
-      console.warn(`[Mapper] min_daily_coverage has invalid config:`, value)
       return null
     }
 
@@ -370,11 +457,9 @@ function deriveFairness(
 
     const minNights = typeof value.min_nights === 'number' ? value.min_nights : 4
     const maxNights = typeof value.max_nights === 'number' ? value.max_nights : 6
-    let nightState = typeof value.target_state === 'number' ? value.target_state : null
-
-    if (nightState === null || !availableStates.includes(nightState)) {
-      nightState = Math.max(...availableStates)
-    }
+    // Night is ALWAYS the max state: APN=3 (N), 7E=2 (E)
+    // Ignore seed target_state since it may not match current shift type
+    const nightState = Math.max(...availableStates)
 
     // Get time slots from config or default to 30 days
     let timeSlots: number[] = Array.from({ length: 30 }, (_, i) => i)
@@ -419,90 +504,11 @@ function deriveFairness(
       })
     }
 
-    console.log(`[Mapper] Generated ${constraints.length} night_distribution constraints (${minNights}-${maxNights} nights per person)`)
     return constraints
   }
 
-  if (key === 'total_shift_cap') {
-    // Rule #8: 13-16 total shifts per person per month
-    const enabled = value.enabled
-    if (enabled !== true) return null
-
-    const minShifts = typeof value.min_shifts === 'number' ? value.min_shifts : 13
-    const maxShifts = typeof value.max_shifts === 'number' ? value.max_shifts : 16
-    
-    // Work states are states that count as "working" (not OFF)
-    // For APN: [1, 2, 3] = Afternoon, PM, Night
-    // For DAY_NIGHT: [1, 2] = Day, Night
-    let workStates: number[] = []
-    if (Array.isArray(value.work_states)) {
-      workStates = (value.work_states as number[]).filter(s => availableStates.includes(s))
-    } else {
-      // Default: all states except 0 (OFF)
-      workStates = availableStates.filter(s => s !== 0)
-    }
-
-    if (workStates.length === 0) {
-      console.warn('[Mapper] total_shift_cap: no valid work states found')
-      return null
-    }
-
-    // Get time slots from config or default to 30 days
-    let timeSlots: number[] = Array.from({ length: 30 }, (_, i) => i)
-    if (Array.isArray(value.time_slots)) {
-      timeSlots = value.time_slots as number[]
-    }
-
-    // For total shift cap, we need to count multiple states (any work state)
-    // Use resource_state_count for each work state and sum them
-    // However, this is complex - we'll generate constraints for each work state
-    // and the solver would need a combined constraint
-    
-    // Alternative approach: Use horizontal_sum with total work count
-    // For now, we'll generate a constraint per staff that counts OFF days
-    // and requires: (total_slots - off_days) >= min_shifts AND <= max_shifts
-    // Which is equivalent to: off_days <= total_slots - min_shifts AND >= total_slots - max_shifts
-    
-    const constraints: SystemConstraint[] = []
-    const totalSlots = timeSlots.length
-
-    for (const staff of staffList) {
-      // Max OFF days = totalSlots - minShifts (so at least minShifts working)
-      constraints.push({
-        name: `${label} Min Work (${staff.employeeId})`,
-        type: 'resource_state_count',
-        config: {
-          type: 'resource_state_count',
-          resource: staff.employeeId,
-          time_slots: timeSlots,
-          target_state: 0, // OFF state
-          operator: '<=',
-          value: totalSlots - minShifts, // e.g., 30 - 13 = 17 max off days
-        },
-        priority,
-        source: 'system',
-      })
-
-      // Min OFF days = totalSlots - maxShifts (so at most maxShifts working)
-      constraints.push({
-        name: `${label} Max Work (${staff.employeeId})`,
-        type: 'resource_state_count',
-        config: {
-          type: 'resource_state_count',
-          resource: staff.employeeId,
-          time_slots: timeSlots,
-          target_state: 0, // OFF state
-          operator: '>=',
-          value: totalSlots - maxShifts, // e.g., 30 - 16 = 14 min off days
-        },
-        priority,
-        source: 'system',
-      })
-    }
-
-    console.log(`[Mapper] Generated ${constraints.length} total_shift_cap constraints (${minShifts}-${maxShifts} shifts = ${totalSlots - maxShifts}-${totalSlots - minShifts} off days)`)
-    return constraints
-  }
+  // NOTE: total_shift_cap is now handled dynamically via buildWorkingHoursConstraints()
+  // using shift_type_config min/max hours per month and shift_definition duration
 
   return null
 }

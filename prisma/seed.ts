@@ -24,10 +24,38 @@ async function main() {
     await prisma.$executeRawUnsafe('TRUNCATE TABLE staff_group CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE role CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE shift_definition CASCADE')
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE shift_type_config CASCADE')
     console.log('✅ Cleared existing data')
   } catch (e) {
     console.log('⚠️  Tables may not exist yet, continuing...')
   }
+
+  // Create Shift Type Configurations (common config for each shift type)
+  await prisma.shiftTypeConfig.upsert({
+    where: { shiftType: 'APN' },
+    update: {},
+    create: {
+      shiftType: 'APN',
+      name: 'APN Shift',
+      description: 'Afternoon, PM, Night shift pattern (0=Off, 1=A, 2=P, 3=N)',
+      minHoursPerMonth: 160,
+      maxHoursPerMonth: 190,
+      isActive: true,
+    },
+  })
+  await prisma.shiftTypeConfig.upsert({
+    where: { shiftType: 'SEVEN_E' },
+    update: {},
+    create: {
+      shiftType: 'SEVEN_E',
+      name: '7E Shift',
+      description: '7E shift pattern: 7=Day (0700-1900, 12h), E=Night (1900-0700, 12h)',
+      minHoursPerMonth: 160,
+      maxHoursPerMonth: 190,
+      isActive: true,
+    },
+  })
+  console.log('✅ Created shift type configurations (APN, 7E)')
 
   // Create Roles (FN/ADM/STF/007)
   const roleIC = await prisma.role.create({
@@ -38,16 +66,26 @@ async function main() {
   })
   console.log('✅ Created 2 roles (IC, Non-IC)')
 
-  // Create Shift Definitions (Updated for 24/7 12h coverage: Day & Night)
-  // Day Shift: 07:00 – 19:00 (12h) => startMinutes = 7*60 = 420, durationMinutes = 720
-  // Night Shift: 19:00 – 07:00 (12h crossing midnight) => startMinutes = 19*60 = 1140, durationMinutes = 720
+  // Create Shift Definitions
+  // 7E Pattern (12h shifts):
+  //   7 = Day Shift: 07:00 – 19:00 (12h) => startMinutes = 7*60 = 420, durationMinutes = 720
+  //   E = Night Shift: 19:00 – 07:00 (12h) => startMinutes = 19*60 = 1140, durationMinutes = 720
+  // APN Pattern (8.5h shifts):
+  //   A = Afternoon: 07:00 – 15:30 (8.5h) => startMinutes = 420, durationMinutes = 510
+  //   P = PM: 14:30 – 23:00 (8.5h) => startMinutes = 870, durationMinutes = 510
+  //   N = Night: 22:30 – 07:00 (8.5h) => startMinutes = 1350, durationMinutes = 510
   await prisma.shiftDefinition.createMany({
     data: [
-      { code: 'D12', startMinutes: 420, durationMinutes: 720, isActive: true },   // 07:00-19:00 (12h Day)
-      { code: 'N12', startMinutes: 1140, durationMinutes: 720, isActive: true },  // 19:00-07:00 (12h Night)
+      // 7E Pattern (12h shifts)
+      { code: '7', startMinutes: 420, durationMinutes: 720, isActive: true },   // 07:00-19:00 (12h Day)
+      { code: 'E', startMinutes: 1140, durationMinutes: 720, isActive: true },  // 19:00-07:00 (12h Night)
+      // APN Pattern (8.5h shifts)
+      { code: 'A', startMinutes: 420, durationMinutes: 510, isActive: true },   // 07:00-15:30 (8.5h Afternoon)
+      { code: 'P', startMinutes: 870, durationMinutes: 510, isActive: true },   // 14:30-23:00 (8.5h PM)
+      { code: 'N', startMinutes: 1350, durationMinutes: 510, isActive: true },  // 22:30-07:00 (8.5h Night)
     ],
   })
-  console.log('✅ Created 2 shift definitions (D12 Day, N12 Night)')
+  console.log('✅ Created 5 shift definitions (7, E for 7E; A, P, N for APN)')
 
   // Create Staff for ICU/HDU Nurses Duty roster (from Hong Kong Adventist Hospital)
   // Based on February 2025 roster: 16 nurses with ranks
@@ -92,7 +130,7 @@ async function main() {
 
   // Advanced constraints for APN shift type
   // APN States: 0=Off, 1=Afternoon, 2=PM, 3=Night
-  // Coverage: Afternoon >=3, PM >=3, Night ==2
+  // Coverage: Afternoon =4, PM =4, Night =2 (daily requirement)
   // Attribute coverage: At least 1 IC and 1 Female on each shift type
   // Common rules applied to ALL staff (not per-employee)
   const allTimeSlots = Array.from({ length: 30 }, (_, i) => i) // June 30 days
@@ -100,24 +138,24 @@ async function main() {
   const constraints: Constraint[] = []
 
   // ========== COVERAGE CONSTRAINTS (APN-specific) ==========
-  // Afternoon shift coverage (state 1)
+  // Afternoon shift coverage (state 1) - exactly 4 per day
   constraints.push(await prisma.constraint.create({
     data: {
-      name: 'Afternoon Coverage >=3',
+      name: 'Afternoon Coverage ==4',
       type: 'vertical_sum',
-      description: 'At least 3 staff on afternoon shift',
-      config: { time_slot: 'ALL', target_state: 1, operator: '>=', value: 3 },
+      description: 'Exactly 4 staff on afternoon shift',
+      config: { time_slot: 'ALL', target_state: 1, operator: '==', value: 4 },
       shiftType: 'APN',
     } as any,
   }))
 
-  // PM shift coverage (state 2)
+  // PM shift coverage (state 2) - exactly 4 per day
   constraints.push(await prisma.constraint.create({
     data: {
-      name: 'PM Coverage >=3',
+      name: 'PM Coverage ==4',
       type: 'vertical_sum',
-      description: 'At least 3 staff on PM shift',
-      config: { time_slot: 'ALL', target_state: 2, operator: '>=', value: 3 },
+      description: 'Exactly 4 staff on PM shift',
+      config: { time_slot: 'ALL', target_state: 2, operator: '==', value: 4 },
       shiftType: 'APN',
     } as any,
   }))
@@ -215,14 +253,14 @@ async function main() {
   }))
 
   // ==========================================================================
-  // DAY_NIGHT MODE CONSTRAINTS (FN/ADM/RUL/003 - Day/Night Staffing)
+  // 7E MODE CONSTRAINTS (FN/ADM/RUL/003 - 7E Staffing)
   // ==========================================================================
-  // DAY_NIGHT States: 0=Off, 1=Day (7), 2=Night (E)
+  // 7E States: 0=Off, 1=Day (7), 2=Night (E)
   // Coverage: Day >=3, Night >=2
   // Compound coverage: Female IC >= 1 on each shift type
   // Pattern blocks: Night→Day transition forbidden
 
-  // ========== COVERAGE CONSTRAINTS (DAY_NIGHT-specific) ==========
+  // ========== COVERAGE CONSTRAINTS (7E-specific) ==========
   // Day shift coverage (state 1) - minimum 3 staff
   constraints.push(await prisma.constraint.create({
     data: {
@@ -230,7 +268,7 @@ async function main() {
       type: 'vertical_sum',
       description: 'At least 3 staff on day shift (7)',
       config: { time_slot: 'ALL', target_state: 1, operator: '>=', value: 3 },
-      shiftType: 'DAY_NIGHT',
+      shiftType: 'SEVEN_E',
     } as any,
   }))
 
@@ -241,11 +279,11 @@ async function main() {
       type: 'vertical_sum',
       description: 'At least 2 staff on night shift (E)',
       config: { time_slot: 'ALL', target_state: 2, operator: '>=', value: 2 },
-      shiftType: 'DAY_NIGHT',
+      shiftType: 'SEVEN_E',
     } as any,
   }))
 
-  // ========== COMPOUND ATTRIBUTE CONSTRAINTS (Female IC) - DAY_NIGHT-specific ==========
+  // ========== COMPOUND ATTRIBUTE CONSTRAINTS (Female IC) - 7E-specific ==========
   // Female IC coverage for Day shift - requires compound filter (gender=F AND role=IC)
   constraints.push(await prisma.constraint.create({
     data: {
@@ -259,7 +297,7 @@ async function main() {
         value: 1, 
         attribute_filters: { gender: ['F'], roles: ['IC'] }
       },
-      shiftType: 'DAY_NIGHT',
+      shiftType: 'SEVEN_E',
     } as any,
   }))
 
@@ -276,11 +314,11 @@ async function main() {
         value: 1, 
         attribute_filters: { gender: ['F'], roles: ['IC'] }
       },
-      shiftType: 'DAY_NIGHT',
+      shiftType: 'SEVEN_E',
     } as any,
   }))
 
-  // ========== PATTERN BLOCKS (DAY_NIGHT-specific Safety Rules) ==========
+  // ========== PATTERN BLOCKS (7E-specific Safety Rules) ==========
   // Block dangerous Night→Day transition (prevents fatigue)
   constraints.push(await prisma.constraint.create({
     data: {
@@ -288,17 +326,17 @@ async function main() {
       type: 'pattern_block',
       description: 'Prevent immediate night then day shift next day (fatigue risk)',
       config: { pattern: ['NIGHT', 'DAY'], state_mapping: { NIGHT: 2, DAY: 1, OFF: 0 } },
-      shiftType: 'DAY_NIGHT',
+      shiftType: 'SEVEN_E',
     } as any
   }))
 
-  // ========== MAX CONSECUTIVE WORK DAYS (DAY_NIGHT-specific) ==========
+  // ========== MAX CONSECUTIVE WORK DAYS (7E-specific) ==========
   // Max 5 consecutive work days for any staff (applies to both day and night states)
   // This is enforced per-resource but as a template for solver integration
   // Note: This creates a horizontal_sum constraint for each staff member
   // For now we add a representative constraint - actual enforcement needs per-staff expansion
   
-  console.log(`✅ Created ${constraints.length} constraints (APN + DAY_NIGHT modes)`) 
+  console.log(`✅ Created ${constraints.length} constraints (APN + 7E modes)`) 
 
   // --------------------------------------------------------------------------
   // System Configuration (GLOBAL + ROSTER) – upsert without destructive truncate
@@ -393,16 +431,17 @@ async function main() {
     locked: true,
   })
 
-  // Rule #7: Post-night rest - 2 day off after 2 consecutive nights
-  // Adjusted to be feasible: 2 nights → 2 day rest (less strict than original spec)
+  // Rule #7: Post-night rest - 2 days off after ANY night shift
+  // Business rule: After finishing a night shift, must have at least 2 full days off
+  // before returning to any shift (day or night)
   await upsertItem(coreGlobal.id, 'post_night_rest', {
-    label: 'Post-Night Rest (1 Day Off After 2 Nights)',
+    label: 'Post-Night Rest (2 Days Off After Night Shift)',
     type: 'nurse_safety',
     value: {
       enabled: true,
-      work_days: 2,     // After 2 consecutive nights...
-      rest_days: 2,     // ...require 2 day rest
-      target_state: 3,  // APN night state
+      work_days: 1,     // After 1 night shift...
+      rest_days: 2,     // ...require 2 days rest before next work
+      target_state: 2,  // 7E night state (E=2); will fallback for APN
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },
     locked: true,
@@ -411,6 +450,7 @@ async function main() {
   // Rule #5: Night shift distribution - 3 to 7 nights per person per month
   // With 13 staff, 2 per night × 30 days = 60 nights total / 13 = ~4.6 avg
   // Allow range 3-7 for flexibility with coverage constraints
+  // NOTE: target_state is for 7E mode (E=2). Mapper will fallback for APN (N=3).
   await upsertItem(coreGlobal.id, 'night_distribution', {
     label: 'Night Distribution (3-7 per Person)',
     type: 'fairness',
@@ -418,27 +458,15 @@ async function main() {
       enabled: true,
       min_nights: 3,
       max_nights: 7,
-      target_state: 3,  // APN night state
+      target_state: 2,  // 7E night state (E=2); mapper will fallback for APN
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },
     locked: false,
   })
 
-  // Rule #8: Total shift cap - 12 to 18 shifts per person per month
-  // Coverage: 3+3+2=8 shifts/day × 30 days = 240 total / 13 staff = ~18.5 avg
-  // Allow 12-18 range for fair distribution
-  await upsertItem(coreGlobal.id, 'total_shift_cap', {
-    label: 'Total Shift Cap (12-18 per Person)',
-    type: 'fairness',
-    value: {
-      enabled: true,
-      min_shifts: 12,
-      max_shifts: 18,
-      work_states: [1, 2, 3],  // APN: Afternoon, PM, Night are all work states
-      time_slots: Array.from({ length: 30 }, (_, i) => i),
-    },
-    locked: false,
-  })
+  // NOTE: Total shift cap is now dynamically derived from shift_type_config + shift_definition
+  // The min/max hours per month from ShiftTypeConfig is used with the average shift duration
+  // to calculate the allowed number of shifts per staff member.
 
   // Seed ROSTER items (editable)
   await upsertItem(rosterMgmt.id, 'min_daily_coverage', {
@@ -448,65 +476,65 @@ async function main() {
     locked: false,
   })
 
-  // DAY_NIGHT specific system config items
-  await upsertItem(coreGlobal.id, 'day_night_day_coverage', {
-    label: 'Day Shift Minimum Coverage (DAY_NIGHT)',
+  // 7E specific system config items
+  await upsertItem(coreGlobal.id, 'seven_e_day_coverage', {
+    label: 'Day Shift Minimum Coverage (7E)',
     type: 'coverage',
     value: { 
       enabled: true,
       min: 3, 
       target_state: 1,
-      shift_type: 'DAY_NIGHT',
+      shift_type: 'SEVEN_E',
     },
     locked: false,
   })
 
-  await upsertItem(coreGlobal.id, 'day_night_night_coverage', {
-    label: 'Night Shift Minimum Coverage (DAY_NIGHT)',
+  await upsertItem(coreGlobal.id, 'seven_e_night_coverage', {
+    label: 'Night Shift Minimum Coverage (7E)',
     type: 'coverage',
     value: { 
       enabled: true,
       min: 2, 
       target_state: 2,
-      shift_type: 'DAY_NIGHT',
+      shift_type: 'SEVEN_E',
     },
     locked: false,
   })
 
-  await upsertItem(coreGlobal.id, 'day_night_female_ic_day', {
-    label: 'Female IC Day Coverage (DAY_NIGHT)',
+  await upsertItem(coreGlobal.id, 'seven_e_female_ic_day', {
+    label: 'Female IC Day Coverage (7E)',
     type: 'compound_coverage',
     value: { 
       enabled: true,
       min: 1, 
       target_state: 1,
       attribute_filters: { gender: ['F'], roles: ['IC'] },
-      shift_type: 'DAY_NIGHT',
+      shift_type: 'SEVEN_E',
     },
     locked: false,
   })
 
-  await upsertItem(coreGlobal.id, 'day_night_female_ic_night', {
-    label: 'Female IC Night Coverage (DAY_NIGHT)',
+  await upsertItem(coreGlobal.id, 'seven_e_female_ic_night', {
+    label: 'Female IC Night Coverage (7E)',
     type: 'compound_coverage',
     value: { 
       enabled: true,
       min: 1, 
       target_state: 2,
       attribute_filters: { gender: ['F'], roles: ['IC'] },
-      shift_type: 'DAY_NIGHT',
+      shift_type: 'SEVEN_E',
     },
     locked: false,
   })
 
-  await upsertItem(coreGlobal.id, 'day_night_block_transition', {
-    label: 'Block Night→Day Transition (DAY_NIGHT)',
+  await upsertItem(coreGlobal.id, 'seven_e_block_transition', {
+    label: 'Block Night→Day Transition (7E)',
     type: 'nurse_safety',
     value: { 
       enabled: true,
       pattern: ['NIGHT', 'DAY'],
       state_mapping: { NIGHT: 2, DAY: 1, OFF: 0 },
-      shift_type: 'DAY_NIGHT',
+      shift_type: 'SEVEN_E',
     },
     locked: true,
   })

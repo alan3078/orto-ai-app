@@ -1,7 +1,8 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { formatMonthISO } from '@/lib/date-time.utils'
+import { ShiftType } from '@/types/enums'
 import { toast } from 'sonner'
 import { generateRosterAction, getRosterAction } from '@/app/actions/generate-roster.action'
 import { rosterKeys } from '../services/dashboard.service'
@@ -39,7 +40,7 @@ export function useGenerateRoster() {
       timeSlots: number
       staffIds: string[]
       constraintIds: string[]
-      shiftType?: 'APN' | 'DAY_NIGHT'
+      shiftType?: ShiftType
     }) => {
       const result = await generateRosterAction(params)
       if (!result.success) throw new Error(result.error)
@@ -47,7 +48,7 @@ export function useGenerateRoster() {
     },
     onSuccess: (data, variables) => {
       // Derive month in local time to avoid timezone drift (e.g. UTC ISO strings can shift back a day)
-      const month = format(new Date(variables.startDate), 'yyyy-MM')
+      const month = formatMonthISO(new Date(variables.startDate))
       queryClient.invalidateQueries({ queryKey: rosterKeys.month(month) })
       toast.success('Roster generation started!')
     },
