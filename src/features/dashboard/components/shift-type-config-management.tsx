@@ -29,7 +29,7 @@ import { toast } from 'sonner'
 import {
   getShiftTypeConfigsAction,
   updateShiftTypeConfigAction,
-} from '@/app/(admin)/config/actions'
+} from '@/app/admin/config/actions'
 import { ShiftType } from '@/types/enums'
 
 interface ShiftTypeConfig {
