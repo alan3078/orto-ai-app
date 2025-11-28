@@ -84,9 +84,10 @@ export function RosterGrid({ month }: RosterGridProps) {
     return acc;
   }, {});
 
-  // Type assertion for roster with shiftType (TypeScript may need regeneration)
-  const rosterWithShiftType = roster as typeof roster & { shiftType?: ShiftType };
-  const shiftType = rosterWithShiftType.shiftType || ShiftType.SEVEN_E;
+  // Get shift type from roster (default to SEVEN_E if not present)
+  const shiftType = ('shiftType' in roster && roster.shiftType) 
+    ? (roster.shiftType as ShiftType) 
+    : ShiftType.SEVEN_E;
 
   return (
     <Card>
