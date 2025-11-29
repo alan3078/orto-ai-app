@@ -47,7 +47,7 @@ type User = {
   mustResetPassword: boolean
   lastLoginAt: Date | null
   createdAt: Date
-  staff: { visibleId: string } | null
+  staff: { id: string; visibleId: string } | null
 }
 
 interface UserListProps {

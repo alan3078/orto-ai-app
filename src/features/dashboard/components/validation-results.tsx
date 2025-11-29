@@ -275,8 +275,8 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
                           const staffB = staffMap[b.resource]
                           if (!staffA || !staffB) return 0
                           return staffComparator(
-                            { rank: staffA.rank, name: staffA.name },
-                            { rank: staffB.rank, name: staffB.name }
+                            { rank: staffA.rank, name: staffA.user?.name ?? staffA.visibleId },
+                            { rank: staffB.rank, name: staffB.user?.name ?? staffB.visibleId }
                           )
                         })
                         .map((staff: HorizontalSummary) => {

@@ -60,7 +60,7 @@ function PointConstraintForm({
   onCancel,
   onSuccess,
 }: {
-  staff: Array<{ id: string; visibleId: string; name: string }>
+  staff: Array<{ id: string; visibleId: string; user?: { name: string } | null }>
   onCancel: () => void
   onSuccess: () => void
 }) {
@@ -137,7 +137,7 @@ function PointConstraintForm({
                     <SelectContent>
                       {staff.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
-                          {s.name} ({s.visibleId})
+                          {s.user?.name ?? s.visibleId} ({s.visibleId})
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 export interface StaffInfo {
   visibleId: string
-  user?: { name: string; email: string } | null
+  user?: { name: string; email: string | null } | null
   rank: string | null
   isIC: boolean
 }

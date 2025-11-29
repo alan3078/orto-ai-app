@@ -33,6 +33,7 @@ export async function fetchUsers() {
       createdAt: true,
       staff: {
         select: {
+          id: true,
           visibleId: true,
         },
       },
@@ -70,10 +71,13 @@ export async function createUserAction(formData: FormData) {
     }
   }
 
-  // If staffId provided, check if already linked
+  // If staffId provided, check if staff exists and is not already linked
   if (staffId) {
-    const existingStaffLink = await prisma.user.findUnique({ where: { staffId } })
-    if (existingStaffLink) {
+    const staff = await prisma.staff.findUnique({ where: { id: staffId } })
+    if (!staff) {
+      return { error: 'Staff member not found' }
+    }
+    if (staff.userId) {
       return { error: 'This staff member is already linked to another user' }
     }
   }
@@ -81,17 +85,24 @@ export async function createUserAction(formData: FormData) {
   const passwordHash = await hash(password, 12)
 
   try {
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         username,
         email: email || null,
         name: name || username, // Default name to username if not provided
         passwordHash,
         role: role || 'MEMBER',
-        staffId: staffId || null,
         mustResetPassword: true,
       },
     })
+
+    // Link staff to user if staffId provided
+    if (staffId) {
+      await prisma.staff.update({
+        where: { id: staffId },
+        data: { userId: user.id },
+      })
+    }
     
     revalidatePath('/admin/users')
     return { success: true }
@@ -135,15 +146,22 @@ export async function updateUserAction(formData: FormData) {
 
   // If staffId provided, check if already linked to another user
   if (staffId) {
-    const existingStaffLink = await prisma.user.findFirst({
-      where: { staffId, NOT: { id } },
-    })
-    if (existingStaffLink) {
+    const staff = await prisma.staff.findUnique({ where: { id: staffId } })
+    if (!staff) {
+      return { error: 'Staff member not found' }
+    }
+    if (staff.userId && staff.userId !== id) {
       return { error: 'This staff member is already linked to another user' }
     }
   }
 
   try {
+    // Get current user to check existing staff link
+    const currentUser = await prisma.user.findUnique({
+      where: { id },
+      include: { staff: true },
+    })
+
     await prisma.user.update({
       where: { id },
       data: {
@@ -151,9 +169,24 @@ export async function updateUserAction(formData: FormData) {
         email: email || null,
         name: name || username, // Default to username if no name
         role,
-        staffId: staffId || null,
       },
     })
+
+    // Handle staff linking/unlinking
+    // Unlink old staff if different
+    if (currentUser?.staff && currentUser.staff.id !== staffId) {
+      await prisma.staff.update({
+        where: { id: currentUser.staff.id },
+        data: { userId: null as any }, // This shouldn't happen in 1:1 mandatory, but handle gracefully
+      })
+    }
+    // Link new staff
+    if (staffId && currentUser?.staff?.id !== staffId) {
+      await prisma.staff.update({
+        where: { id: staffId },
+        data: { userId: id },
+      })
+    }
     
     revalidatePath('/admin/users')
     return { success: true }

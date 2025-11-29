@@ -23,7 +23,7 @@ interface ResetPasswordDialogProps {
   onSuccess: () => void
   user: {
     id: string
-    email: string
+    email: string | null
     name: string | null
   }
 }

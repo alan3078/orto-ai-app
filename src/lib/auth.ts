@@ -29,16 +29,6 @@ declare module 'next-auth' {
   }
 }
 
-declare module 'next-auth/jwt' {
-  interface JWT {
-    id: string
-    username: string
-    role: UserRole
-    mustResetPassword: boolean
-    staffId?: string | null
-  }
-}
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -100,11 +90,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id
-        session.user.username = token.username
-        session.user.role = token.role
-        session.user.mustResetPassword = token.mustResetPassword
-        session.user.staffId = token.staffId
+        session.user.id = token.id as string
+        session.user.username = token.username as string
+        session.user.role = token.role as UserRole
+        session.user.mustResetPassword = token.mustResetPassword as boolean
+        session.user.staffId = token.staffId as string | null | undefined
       }
       return session
     },

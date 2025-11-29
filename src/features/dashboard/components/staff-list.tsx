@@ -14,6 +14,7 @@ import { useStaffWithFilter, useDeleteStaff, useToggleStaffActive, type StaffFil
 import { AddStaffDialog } from './add-staff-dialog'
 import { EditStaffDialog } from './edit-staff-dialog'
 import { cn } from '@/lib/utils'
+import type { Staff } from '@/types/staff'
 
 export function StaffList() {
   const [filter, setFilter] = useState<StaffFilter>('active')
@@ -21,7 +22,7 @@ export function StaffList() {
   const deleteStaff = useDeleteStaff()
   const toggleActive = useToggleStaffActive()
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingStaff, setEditingStaff] = useState<typeof staff[number] | null>(null)
+  const [editingStaff, setEditingStaff] = useState<Staff | null>(null)
   const [query, setQuery] = useState('')
 
   const filtered = useMemo(() => {
@@ -39,8 +40,8 @@ export function StaffList() {
     })
   }, [staff, query])
 
-  const getStaffName = (s: typeof staff[number]) => s.user?.name || s.visibleId
-  const getStaffEmail = (s: typeof staff[number]) => s.user?.email || '—'
+  const getStaffName = (s: Staff) => s.user?.name || s.visibleId
+  const getStaffEmail = (s: Staff) => s.user?.email || '—'
 
   const handleDelete = (id: string, name: string) => {
     if (confirm(`Delete ${name}? This cannot be undone.`)) {

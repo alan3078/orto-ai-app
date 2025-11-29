@@ -34,7 +34,7 @@ interface EditUserDialogProps {
     email: string | null
     name: string | null
     role: UserRole
-    staffId: string | null
+    staff: { id: string; visibleId: string } | null
   }
 }
 
@@ -49,14 +49,14 @@ type Staff = {
 export function EditUserDialog({ open, onOpenChange, onSuccess, user }: EditUserDialogProps) {
   const [isPending, startTransition] = useTransition()
   const [staff, setStaff] = useState<Staff[]>([])
-  const [selectedStaffId, setSelectedStaffId] = useState<string>(user.staffId || 'none')
+  const [selectedStaffId, setSelectedStaffId] = useState<string>(user.staff?.id || 'none')
 
   useEffect(() => {
     if (open) {
       fetchStaffForLinking().then(setStaff).catch(console.error)
-      setSelectedStaffId(user.staffId || 'none')
+      setSelectedStaffId(user.staff?.id || 'none')
     }
-  }, [open, user.staffId])
+  }, [open, user.staff?.id])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -82,7 +82,7 @@ export function EditUserDialog({ open, onOpenChange, onSuccess, user }: EditUser
   }
 
   // Include current linked staff + unlinked staff
-  const availableStaff = staff.filter(s => !s.userId || s.id === user.staffId)
+  const availableStaff = staff.filter(s => !s.userId || s.id === user.staff?.id)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

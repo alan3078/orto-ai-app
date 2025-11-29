@@ -1,4 +1,4 @@
-import type { Gender } from '@prisma/client'
+import type { Gender, UserRole } from '@prisma/client'
 
 export interface Role {
   id: string
@@ -20,9 +20,9 @@ export interface StaffGroup {
 
 export interface User {
   id: string
-  email: string
+  email: string | null
   name: string
-  role: 'MANAGER' | 'MEMBER'
+  role: UserRole
   isActive: boolean
   deletedAt: Date | null
 }

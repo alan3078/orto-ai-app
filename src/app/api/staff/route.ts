@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sortStaff } from '@/lib/staff-sort'
 import { hash } from 'bcryptjs'
+import { UserRole } from '@prisma/client'
 
 export async function GET() {
   try {
@@ -26,19 +27,23 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { name, email, visibleId, password } = body
 
-    if (!name || !email || !visibleId) {
-      return NextResponse.json({ error: 'Name, Email and Staff ID are required' }, { status: 400 })
+    if (!name || !visibleId) {
+      return NextResponse.json({ error: 'Name and Staff ID are required' }, { status: 400 })
     }
+
+    // Generate username from visibleId (lowercase)
+    const username = visibleId.toLowerCase()
 
     const passwordHash = await hash(password || 'changeme123', 12)
 
     // Create User + Staff together
     const user = await prisma.user.create({
       data: {
-        email,
+        username,
+        email: email || null,
         name,
         passwordHash,
-        role: 'MEMBER',
+        role: UserRole.MEMBER,
         isActive: true,
         mustResetPassword: true,
         staff: {
