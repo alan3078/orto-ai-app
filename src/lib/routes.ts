@@ -13,6 +13,7 @@ export const ROUTES = {
     STAFF_GROUPS: '/admin/staff-groups',
     ROSTER_MANAGEMENT: '/admin/roster-management',
     CONFIG: '/admin/config',
+    SHIFT_SETTINGS: '/admin/config/shift-settings',
     PROFILE: '/admin/profile',
   },
   

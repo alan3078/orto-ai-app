@@ -122,6 +122,7 @@ model Constraint {
   type        String     // point | vertical_sum | horizontal_sum | sliding_window
   config      Json
   isActive    Boolean    @default(true) @map("is_active")
+  isRequired  Boolean    @default(true) @map("is_required") // Hard (true) vs Soft (false) constraint
   priority    Int        @default(0)
   shiftType   ShiftType? @map("shift_type") // null = GLOBAL (applies to all), APN or DAY_NIGHT = specific
   rosters     Roster[]

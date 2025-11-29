@@ -123,15 +123,16 @@ export class SolverIntegrationService {
    */
   private buildSolverRequest(
     staff: Array<{ id: string; employeeId: string; gender?: string | null; staffRoles?: { role: { name: string } }[] }>,
-    constraints: Array<{ type: string; config: unknown }>,
+    constraints: Array<{ type: string; config: unknown; isRequired?: boolean }>,
     timeSlots: number,
-    systemConstraints: Array<{ type: string; config: Record<string, unknown> }> = [],
+    systemConstraints: Array<{ type: string; config: Record<string, unknown>; isRequired?: boolean }> = [],
     resourceAttributes: Record<string, any> = {},
     states: number[] = [0, 1, 2]
   ) {
     // Map database constraint config to solver format
     const solverConstraints: SolverConstraint[] = constraints.map((c) => {
       const config = c.config as Record<string, unknown>
+      const is_required = c.isRequired ?? true  // Default to hard constraint
       switch (c.type) {
         case ConstraintType.POINT:
           return {
@@ -139,6 +140,7 @@ export class SolverIntegrationService {
             resource: config.resource as string,
             time_slot: config.time_slot as number,
             state: config.state as number,
+            is_required,
           }
         case ConstraintType.VERTICAL_SUM:
           return {
@@ -147,6 +149,7 @@ export class SolverIntegrationService {
             target_state: config.target_state as number,
             operator: config.operator as '>=' | '<=' | '==',
             value: config.value as number,
+            is_required,
           }
         case ConstraintType.HORIZONTAL_SUM:
           return {
@@ -156,6 +159,7 @@ export class SolverIntegrationService {
             target_state: config.target_state as number,
             operator: config.operator as '>=' | '<=' | '==',
             value: config.value as number,
+            is_required,
           }
         case ConstraintType.SLIDING_WINDOW:
           return {
@@ -164,6 +168,7 @@ export class SolverIntegrationService {
             work_days: config.work_days as number,
             rest_days: config.rest_days as number,
             target_state: config.target_state as number,
+            is_required,
           }
         case ConstraintType.ATTRIBUTE_VERTICAL_SUM:
           return {
@@ -174,6 +179,7 @@ export class SolverIntegrationService {
             value: config.value as number,
             attribute: config.attribute as string,
             attribute_values: config.attribute_values as string[],
+            is_required,
           } as any
         case ConstraintType.RESOURCE_STATE_COUNT:
           return {
@@ -183,6 +189,7 @@ export class SolverIntegrationService {
             target_state: config.target_state as number,
             operator: config.operator as '>=' | '<=' | '==',
             value: config.value as number,
+            is_required,
           } as any
         case ConstraintType.PATTERN_BLOCK:
           return {
@@ -190,6 +197,7 @@ export class SolverIntegrationService {
             pattern: config.pattern as string[],
             resources: 'ALL',
             state_mapping: config.state_mapping as Record<string, number> | undefined,
+            is_required,
           } as any
         case ConstraintType.COMPOUND_ATTRIBUTE_VERTICAL_SUM:
           return {
@@ -199,6 +207,7 @@ export class SolverIntegrationService {
             operator: config.operator as '>=' | '<=' | '==',
             value: config.value as number,
             attribute_filters: config.attribute_filters as Record<string, string[]>,
+            is_required,
           } as any
         default:
           throw new Error(`Unsupported constraint type: ${c.type}`)
@@ -209,6 +218,7 @@ export class SolverIntegrationService {
     const systemSolverConstraints = systemConstraints
       .map((sc) => {
         const config = sc.config
+        const is_required = sc.isRequired ?? true  // System constraints default to hard
         switch (sc.type) {
           case ConstraintType.POINT:
             return {
@@ -216,6 +226,7 @@ export class SolverIntegrationService {
               resource: config.resource as string,
               time_slot: config.time_slot as number,
               state: config.state as number,
+              is_required,
             }
           case ConstraintType.VERTICAL_SUM:
             return {
@@ -224,6 +235,7 @@ export class SolverIntegrationService {
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
+              is_required,
             }
           case ConstraintType.HORIZONTAL_SUM:
             return {
@@ -233,6 +245,7 @@ export class SolverIntegrationService {
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
+              is_required,
             }
           case ConstraintType.SLIDING_WINDOW:
             return {
@@ -241,6 +254,7 @@ export class SolverIntegrationService {
               work_days: config.work_days as number,
               rest_days: config.rest_days as number,
               target_state: config.target_state as number,
+              is_required,
             }
           case ConstraintType.RESOURCE_STATE_COUNT:
             return {
@@ -250,6 +264,7 @@ export class SolverIntegrationService {
               target_state: config.target_state as number,
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
+              is_required,
             }
           case ConstraintType.PATTERN_BLOCK:
             return {
@@ -257,6 +272,7 @@ export class SolverIntegrationService {
               pattern: config.pattern as string[],
               resources: 'ALL',
               state_mapping: config.state_mapping as Record<string, number> | undefined,
+              is_required,
             }
           case ConstraintType.COMPOUND_ATTRIBUTE_VERTICAL_SUM:
             return {
@@ -266,6 +282,7 @@ export class SolverIntegrationService {
               operator: config.operator as '>=' | '<=' | '==',
               value: config.value as number,
               attribute_filters: config.attribute_filters as Record<string, string[]>,
+              is_required,
             }
           default:
             console.warn(`[SolverIntegration] Skipping unsupported system constraint type: ${sc.type}`)

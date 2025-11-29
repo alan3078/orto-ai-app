@@ -6,6 +6,7 @@ import {
   getConstraintsAction,
   createConstraintAction,
   deleteConstraintAction,
+  updateConstraintAction,
 } from '@/app/actions/constraints.actions'
 import { constraintKeys } from '../services/dashboard.service'
 
@@ -69,6 +70,37 @@ export function useDeleteConstraint() {
     },
     onError: (err) => {
       toast.error('Failed to delete constraint: ' + err.message)
+    },
+  })
+}
+
+/**
+ * Hook to update an existing constraint
+ */
+export function useUpdateConstraint() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string
+      name?: string
+      type?: string
+      config?: Record<string, unknown>
+      description?: string
+      priority?: number
+      isRequired?: boolean
+    }) => {
+      const { id, ...updateData } = data
+      const result = await updateConstraintAction(id, updateData)
+      if (!result.success) throw new Error(result.error)
+      return result.constraint
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: constraintKeys.all })
+      toast.success('Constraint updated successfully!')
+    },
+    onError: (err) => {
+      toast.error('Failed to update constraint: ' + err.message)
     },
   })
 }

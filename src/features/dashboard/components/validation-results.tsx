@@ -55,7 +55,7 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
     const staff = staffMap[employeeId]
     if (staff) {
       return {
-        name: staff.name,
+        name: staff.isIC ? `${staff.name} (IC)` : staff.name,
         rank: staff.rank || '',
       }
     }

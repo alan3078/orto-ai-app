@@ -7,6 +7,7 @@ export interface StaffInfo {
   employeeId: string
   name: string
   rank: string | null
+  isIC: boolean
 }
 
 /**
@@ -18,12 +19,20 @@ export async function validateRosterAction(rosterId: string) {
     const service = new SolverIntegrationService()
     const validationResult = await service.validateRoster(rosterId)
 
-    // Fetch staff info for display (name, rank) - map employeeId to details
+    // Fetch staff info for display (name, rank, roles) - map employeeId to details
     const roster = await prisma.roster.findUnique({
       where: { id: rosterId },
       include: {
         shifts: {
-          include: { staff: true },
+          include: {
+            staff: {
+              include: {
+                staffRoles: {
+                  include: { role: true },
+                },
+              },
+            },
+          },
         },
       },
     })
@@ -32,10 +41,12 @@ export async function validateRosterAction(rosterId: string) {
     if (roster?.shifts) {
       for (const shift of roster.shifts) {
         if (!staffMap[shift.staff.employeeId]) {
+          const isIC = shift.staff.staffRoles?.some((sr) => sr.role.name === 'IC') ?? false
           staffMap[shift.staff.employeeId] = {
             employeeId: shift.staff.employeeId,
             name: shift.staff.name,
             rank: shift.staff.rank,
+            isIC,
           }
         }
       }

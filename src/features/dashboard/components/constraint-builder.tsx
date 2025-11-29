@@ -24,8 +24,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Trash2, ChevronDown, Globe, Target } from 'lucide-react'
-import { useConstraints, useDeleteConstraint } from '../hooks/use-constraints'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Plus, Trash2, ChevronDown, Globe, Target, Pencil } from 'lucide-react'
+import { useConstraints, useDeleteConstraint, useUpdateConstraint } from '../hooks/use-constraints'
 import { AddConstraintForm } from './add-constraint-form'
 import { ShiftType } from '@/types/enums'
 
@@ -35,14 +51,70 @@ interface ConstraintBuilderProps {
   shiftType: ShiftType
 }
 
+// Type for constraint being edited
+interface EditingConstraint {
+  id: string
+  name: string
+  type: string
+  config: any
+  description?: string
+}
+
 export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
   const { data: constraints, isLoading } = useConstraints()
   const deleteConstraint = useDeleteConstraint()
+  const updateConstraint = useUpdateConstraint()
   const [formType, setFormType] = useState<ConstraintType>(null)
   const [isOpen, setIsOpen] = useState(true)
+  const [editingConstraint, setEditingConstraint] = useState<EditingConstraint | null>(null)
+  const [editFormData, setEditFormData] = useState<{
+    name: string
+    operator: string
+    value: number
+    description: string
+    isRequired: boolean
+  }>({ name: '', operator: '>=', value: 0, description: '', isRequired: true })
 
   const handleCancel = () => setFormType(null)
   const handleSuccess = () => setFormType(null)
+
+  // Handle edit dialog open
+  const handleEditClick = (constraint: any) => {
+    setEditingConstraint(constraint)
+    setEditFormData({
+      name: constraint.name,
+      operator: constraint.config?.operator || '>=',
+      value: constraint.config?.value || 0,
+      description: constraint.description || '',
+      isRequired: constraint.isRequired !== false,
+    })
+  }
+
+  // Handle edit form submit
+  const handleEditSubmit = async () => {
+    if (!editingConstraint) return
+    
+    const updatedConfig = {
+      ...editingConstraint.config,
+      operator: editFormData.operator,
+      value: editFormData.value,
+    }
+    
+    await updateConstraint.mutateAsync({
+      id: editingConstraint.id,
+      name: editFormData.name,
+      config: updatedConfig,
+      description: editFormData.description,
+      isRequired: editFormData.isRequired,
+    })
+    
+    setEditingConstraint(null)
+  }
+
+  // Check if constraint is editable (vertical_sum types)
+  const isEditable = (type: string) => {
+    return ['vertical_sum', 'compound_attribute_vertical_sum', 'attribute_vertical_sum'].includes(type)
+  }
 
   // Filter constraints by shift type: show GLOBAL (null) + matching shiftType
   const filteredConstraints = useMemo(() => {
@@ -135,8 +207,9 @@ export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Scope</TableHead>
+                  <TableHead>Required</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Priority</TableHead>
+                  <TableHead>Rule</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Actions</TableHead>
@@ -149,6 +222,11 @@ export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
                       {renderScopeBadge(c.shiftType)}
                     </TableCell>
                     <TableCell>
+                      <span className={`text-xs font-medium ${c.isRequired !== false ? 'text-green-600' : 'text-yellow-600'}`}>
+                        {c.isRequired !== false ? 'Y' : 'N'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
                       <Badge
                         variant={c.type === 'point' ? 'secondary' : 'default'}
                         className="text-xs"
@@ -157,9 +235,9 @@ export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {c.priority > 0 ? (
-                        <Badge variant="outline" className="text-xs">
-                          P{c.priority}
+                      {c.config?.operator && c.config?.value !== undefined ? (
+                        <Badge variant="outline" className="text-xs font-mono">
+                          {c.config.operator}{c.config.value}
                         </Badge>
                       ) : '-'}
                     </TableCell>
@@ -168,16 +246,29 @@ export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
                       {c.description || '-'}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => deleteConstraint.mutate(c.id)}
-                        disabled={deleteConstraint.isPending}
-                        className="shrink-0"
-                        aria-label="Delete Constraint"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        {isEditable(c.type) && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleEditClick(c)}
+                            className="shrink-0"
+                            aria-label="Edit Constraint"
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => deleteConstraint.mutate(c.id)}
+                          disabled={deleteConstraint.isPending}
+                          className="shrink-0"
+                          aria-label="Delete Constraint"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -188,6 +279,113 @@ export function ConstraintBuilder({ shiftType }: ConstraintBuilderProps) {
           </CardContent>
         </CollapsibleContent>
       </Card>
+
+      {/* Edit Constraint Dialog */}
+      <Dialog open={!!editingConstraint} onOpenChange={(open) => !open && setEditingConstraint(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Constraint</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-operator">Operator</Label>
+                <Select
+                  value={editFormData.operator}
+                  onValueChange={(val) => setEditFormData({ ...editFormData, operator: val })}
+                >
+                  <SelectTrigger id="edit-operator">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value=">=">{'>='} At least</SelectItem>
+                    <SelectItem value="<=">{'<='} At most</SelectItem>
+                    <SelectItem value="==">== Exactly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-value">Value</Label>
+                <Input
+                  id="edit-value"
+                  type="number"
+                  min="0"
+                  value={editFormData.value}
+                  onChange={(e) => setEditFormData({ ...editFormData, value: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
+                id="edit-description"
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-required" className="text-sm font-medium">
+                  Constraint Type
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {editFormData.isRequired 
+                    ? 'Hard constraint - must be satisfied' 
+                    : 'Soft constraint - can be relaxed with penalty'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge 
+                  variant={editFormData.isRequired ? 'default' : 'secondary'}
+                  className={`text-xs ${editFormData.isRequired ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}
+                >
+                  {editFormData.isRequired ? 'Hard' : 'Soft'}
+                </Badge>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditFormData({ ...editFormData, isRequired: !editFormData.isRequired })}
+                >
+                  Toggle
+                </Button>
+              </div>
+            </div>
+
+            {editingConstraint?.config && (
+              <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                <strong>Target State:</strong> {editingConstraint.config.target_state} | 
+                <strong> Time Slot:</strong> {editingConstraint.config.time_slot}
+                {editingConstraint.config.attribute_filters && (
+                  <div>
+                    <strong>Filters:</strong> {JSON.stringify(editingConstraint.config.attribute_filters)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingConstraint(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSubmit} disabled={updateConstraint.isPending}>
+              {updateConstraint.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Collapsible>
   )
 }

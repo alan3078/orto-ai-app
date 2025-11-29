@@ -101,25 +101,25 @@ export function AdminDemo() {
             </div>
 
             <TabsContent value="roster" className="mt-0">
-              <Card className="border-2 shadow-xl">
-                <CardHeader className="border-b bg-muted/40">
-                  <div className="flex items-center justify-between">
+              <Card className="border-2 shadow-xl overflow-hidden">
+                <CardHeader className="border-b bg-muted/40 p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-1">
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-primary" />
+                      <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         November 2025 Roster
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="text-xs sm:text-sm">
                         AI-generated schedule with 98% constraint satisfaction
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Users className="mr-2 h-4 w-4" />
+                      <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+                        <Users className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                         Manage Staff
                       </Button>
-                      <Button size="sm">
-                        <Wand2 className="mr-2 h-4 w-4" />
+                      <Button size="sm" className="text-xs sm:text-sm">
+                        <Wand2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                         Regenerate
                       </Button>
                     </div>
@@ -130,9 +130,9 @@ export function AdminDemo() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[200px]">Staff Member</TableHead>
+                          <TableHead className="w-[120px] sm:w-[200px]">Staff Member</TableHead>
                           {MOCK_ROSTER_DAYS.map((day) => (
-                            <TableHead key={day} className="text-center w-12">
+                            <TableHead key={day} className="text-center w-10 sm:w-12">
                               {day}
                             </TableHead>
                           ))}
@@ -142,8 +142,8 @@ export function AdminDemo() {
                       <TableBody>
                         {MOCK_STAFF.map((staff, i) => (
                           <TableRow key={i}>
-                            <TableCell>
-                              <div className="font-medium">{staff.name}</div>
+                            <TableCell className="p-2 sm:p-4">
+                              <div className="font-medium text-sm">{staff.name}</div>
                               <div className="text-xs text-muted-foreground">{staff.role}</div>
                             </TableCell>
                             {staff.shifts.map((shift, j) => (

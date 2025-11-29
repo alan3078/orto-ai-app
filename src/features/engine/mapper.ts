@@ -507,6 +507,10 @@ function deriveFairness(
     return constraints
   }
 
+  // NOTE: dayoff_distribution is a placeholder - days off are determined by coverage requirements
+  // The solver assigns OFF state to remaining slots after satisfying coverage constraints.
+  // Future: Could add soft optimization objective to balance dayoffs across staff.
+
   // NOTE: total_shift_cap is now handled dynamically via buildWorkingHoursConstraints()
   // using shift_type_config min/max hours per month and shift_definition duration
 

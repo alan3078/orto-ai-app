@@ -89,3 +89,42 @@ export async function deleteConstraintAction(id: string) {
     }
   }
 }
+
+/**
+ * Update an existing constraint
+ */
+export async function updateConstraintAction(
+  id: string,
+  data: {
+    name?: string
+    type?: string
+    config?: Record<string, unknown>
+    description?: string
+    priority?: number
+    shiftType?: ShiftType | null
+    isRequired?: boolean
+  }
+) {
+  try {
+    const constraint = await prisma.constraint.update({
+      where: { id },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(data.type && { type: data.type }),
+        ...(data.config && { config: data.config as any }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.priority !== undefined && { priority: data.priority }),
+        ...(data.shiftType !== undefined && { shiftType: data.shiftType }),
+        ...(data.isRequired !== undefined && { isRequired: data.isRequired }),
+      },
+    })
+    revalidatePath('/roster-management')
+    return { success: true as const, constraint }
+  } catch (error) {
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      constraint: null,
+    }
+  }
+}
