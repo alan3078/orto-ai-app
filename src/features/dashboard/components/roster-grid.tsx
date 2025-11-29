@@ -128,14 +128,13 @@ export function RosterGrid({ month }: RosterGridProps) {
         </div>
       </CardHeader>
       <CardContent className='p-0'>
-        <div className='overflow-x-auto'>
-          <Table>
+        <Table className="table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className='sticky left-0 z-20 bg-background w-[80px] font-semibold'>
+                <TableHead className='sticky left-0 z-20 bg-background w-[80px] min-w-[80px] font-semibold pl-4'>
                   Rank
                 </TableHead>
-                <TableHead className='sticky left-[80px] z-20 bg-background w-[180px] font-semibold border-r shadow-[4px_0_24px_-2px_rgba(0,0,0,0.1)]'>
+                <TableHead className='sticky left-[80px] z-20 bg-background w-[180px] min-w-[180px] font-semibold border-r shadow-[4px_0_24px_-2px_rgba(0,0,0,0.1)]'>
                   Staff Name
                 </TableHead>
                 {Array.from({ length: roster.timeSlots }).map((_, i) => {
@@ -145,7 +144,7 @@ export function RosterGrid({ month }: RosterGridProps) {
                     <TableHead
                       key={i}
                       className={cn(
-                        'text-center min-w-[50px] p-1 h-auto',
+                        'text-center w-[50px] min-w-[50px] p-1 h-auto',
                         isWeekend && 'bg-muted/30'
                       )}>
                       <div className="flex flex-col items-center justify-center py-2">
@@ -169,10 +168,10 @@ export function RosterGrid({ month }: RosterGridProps) {
                 <TableRow
                   key={staff.id}
                   className='hover:bg-muted/50 transition-colors'>
-                  <TableCell className='sticky left-0 z-10 bg-background font-medium text-muted-foreground'>
+                  <TableCell className='sticky left-0 z-10 bg-background w-[80px] min-w-[80px] font-medium text-muted-foreground pl-4'>
                     {staff.rank || '-'}
                   </TableCell>
-                  <TableCell className='sticky left-[80px] z-10 bg-background font-medium border-r shadow-[4px_0_24px_-2px_rgba(0,0,0,0.1)]'>
+                  <TableCell className='sticky left-[80px] z-10 bg-background w-[180px] min-w-[180px] font-medium border-r shadow-[4px_0_24px_-2px_rgba(0,0,0,0.1)]'>
                     <div className="truncate max-w-[160px]" title={staff.name}>
                       {staff.name}
                     </div>
@@ -213,7 +212,6 @@ export function RosterGrid({ month }: RosterGridProps) {
               ))}
             </TableBody>
           </Table>
-        </div>
 
         {/* Footer / Legend */}
         <div className='bg-muted/20 p-4 border-t flex flex-wrap items-center gap-6 text-sm'>
