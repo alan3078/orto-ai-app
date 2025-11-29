@@ -1,19 +1,23 @@
 "use client"
 
-import { Bell, Search, LogOut } from 'lucide-react'
+import { Bell, Search, LogOut, Shield, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import Link from 'next/link'
-import { ROUTES } from '@/lib/routes'
+import { useSession } from 'next-auth/react'
+import { logoutAction } from '@/app/actions/auth.actions'
 
 export function Header() {
+  const { data: session } = useSession()
+  const user = session?.user
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
       <div className="flex-1">
@@ -35,21 +39,31 @@ export function Header() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="relative">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">
-              A
+              {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || <User className="h-4 w-4" />}
             </div>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">Admin</p>
-            <p className="text-xs text-muted-foreground">admin@orto.ai</p>
-          </div>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuLabel>
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium">{user?.name || 'User'}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
+              {user?.role && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  {user.role}
+                </p>
+              )}
+            </div>
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href={ROUTES.AUTH.LOGOUT} className="cursor-pointer text-red-600 focus:text-red-600">
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Link>
+            <form action={logoutAction} className="w-full">
+              <button type="submit" className="flex w-full items-center gap-2 cursor-pointer text-red-600">
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </form>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

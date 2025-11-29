@@ -4,8 +4,8 @@ import { SolverIntegrationService } from '@/services/solver-integration.service'
 import { prisma } from '@/lib/prisma'
 
 export interface StaffInfo {
-  employeeId: string
-  name: string
+  visibleId: string
+  user?: { name: string; email: string } | null
   rank: string | null
   isIC: boolean
 }
@@ -19,7 +19,7 @@ export async function validateRosterAction(rosterId: string) {
     const service = new SolverIntegrationService()
     const validationResult = await service.validateRoster(rosterId)
 
-    // Fetch staff info for display (name, rank, roles) - map employeeId to details
+    // Fetch staff info for display (name, rank, roles) - map visibleId to details
     const roster = await prisma.roster.findUnique({
       where: { id: rosterId },
       include: {
@@ -27,6 +27,7 @@ export async function validateRosterAction(rosterId: string) {
           include: {
             staff: {
               include: {
+                user: { select: { name: true, email: true } },
                 staffRoles: {
                   include: { role: true },
                 },
@@ -40,11 +41,11 @@ export async function validateRosterAction(rosterId: string) {
     const staffMap: Record<string, StaffInfo> = {}
     if (roster?.shifts) {
       for (const shift of roster.shifts) {
-        if (!staffMap[shift.staff.employeeId]) {
+        if (!staffMap[shift.staff.visibleId]) {
           const isIC = shift.staff.staffRoles?.some((sr) => sr.role.name === 'IC') ?? false
-          staffMap[shift.staff.employeeId] = {
-            employeeId: shift.staff.employeeId,
-            name: shift.staff.name,
+          staffMap[shift.staff.visibleId] = {
+            visibleId: shift.staff.visibleId,
+            user: shift.staff.user,
             rank: shift.staff.rank,
             isIC,
           }

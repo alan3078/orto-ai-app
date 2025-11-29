@@ -46,7 +46,8 @@ async function testIntegration() {
     console.log('\n   Staff:')
     staff.forEach((s) => {
       const roles = (s as any).staffRoles?.map((r: any) => r.role?.name).filter(Boolean) || []
-      console.log(`      - ${s.name} (${s.employeeId}) [${s.rank || 'N/A'} | ${roles.join(', ') || 'No Role'} | ${s.gender || 'N/A'}]`)
+      const name = (s as any).user?.name || s.visibleId
+      console.log(`      - ${name} (${s.visibleId}) [${s.rank || 'N/A'} | ${roles.join(', ') || 'No Role'} | ${s.gender || 'N/A'}]`)
     })
 
     // Display constraints
@@ -88,7 +89,7 @@ async function testIntegration() {
     
     const shifts = await prisma.shift.findMany({
       where: { rosterId: result.rosterId },
-      include: { staff: true },
+      include: { staff: { include: { user: true } } },
       orderBy: [{ staffId: 'asc' }, { timeSlot: 'asc' }],
     })
 
@@ -96,7 +97,7 @@ async function testIntegration() {
 
     // Group by staff
     const shiftsByStaff = shifts.reduce((acc, shift) => {
-      const key = shift.staff.name
+      const key = shift.staff.user?.name || shift.staff.visibleId
       if (!acc[key]) acc[key] = []
       acc[key].push(shift.state)
       return acc
@@ -122,7 +123,7 @@ async function testIntegration() {
     // Check Alice's constraint (if exists)
     const aliceConstraint = constraints.find(c => c.name.includes('Alice'))
     if (aliceConstraint) {
-      const aliceStaff = staff.find(s => s.employeeId === 'EMP001')
+      const aliceStaff = staff.find(s => s.visibleId === 'EMP001')
       if (aliceStaff) {
         const aliceDay0 = shifts.find(s => 
           s.staffId === aliceStaff.id && s.timeSlot === 0

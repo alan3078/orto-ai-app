@@ -10,7 +10,8 @@ import {
   Calendar, 
   ChevronLeft,
   ChevronRight,
-  Sliders
+  Sliders,
+  UserCog
 } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,7 @@ import { ROUTES } from '@/lib/routes'
 
 const menuItems = [
   { icon: Home, label: 'Home', href: ROUTES.ADMIN.HOME },
+  { icon: UserCog, label: 'User Management', href: ROUTES.ADMIN.USERS },
   { icon: Users, label: 'Staff', href: ROUTES.ADMIN.STAFF },
   { icon: UsersRound, label: 'Staff Groups', href: ROUTES.ADMIN.STAFF_GROUPS },
   { icon: Calendar, label: 'Roster Management', href: ROUTES.ADMIN.ROSTER_MANAGEMENT },

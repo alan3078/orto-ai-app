@@ -45,11 +45,14 @@ export class SolverIntegrationService {
     console.log(`[SolverIntegration] Received ${staffIds.length} staffIds to process`)
     
     const staff = await prisma.staff.findMany({
-      where: { id: { in: staffIds }, isActive: true },
-      include: { staffRoles: { include: { role: true } } },
+      where: { id: { in: staffIds }, isActive: true, deletedAt: null },
+      include: { 
+        staffRoles: { include: { role: true } },
+        user: { select: { name: true, email: true } },
+      },
     })
 
-    console.log(`[SolverIntegration] Found ${staff.length} active staff in DB:`, staff.map(s => ({ id: s.id, employeeId: s.employeeId, name: s.name })))
+    console.log(`[SolverIntegration] Found ${staff.length} active staff in DB:`, staff.map(s => ({ id: s.id, visibleId: s.visibleId, name: s.user.name })))
 
     // Fetch constraints filtered by shiftType:
     // - Include constraints matching the specific shiftType (APN or SEVEN_E)
@@ -122,7 +125,7 @@ export class SolverIntegrationService {
    * Build solver request payload from database models
    */
   private buildSolverRequest(
-    staff: Array<{ id: string; employeeId: string; gender?: string | null; staffRoles?: { role: { name: string } }[] }>,
+    staff: Array<{ id: string; visibleId: string; gender?: string | null; staffRoles?: { role: { name: string } }[] }>,
     constraints: Array<{ type: string; config: unknown; isRequired?: boolean }>,
     timeSlots: number,
     systemConstraints: Array<{ type: string; config: Record<string, unknown>; isRequired?: boolean }> = [],
@@ -294,7 +297,7 @@ export class SolverIntegrationService {
     const allConstraints = [...solverConstraints, ...systemSolverConstraints]
     console.log(`[SolverIntegration] Merged ${solverConstraints.length} user + ${systemSolverConstraints.length} system constraints`)
 
-    const resourceList = staff.map((s) => s.employeeId)
+    const resourceList = staff.map((s) => s.visibleId)
     console.log(`[SolverIntegration] Building payload with ${resourceList.length} resources:`, resourceList)
 
     const payload: any = {
@@ -304,7 +307,7 @@ export class SolverIntegrationService {
         // Use dynamic states based on shift type (APN or SEVEN_E)
         states,
         resource_attributes: Object.fromEntries(
-          staff.map(s => [s.employeeId, {
+          staff.map(s => [s.visibleId, {
             gender: s.gender,
             roles: (s.staffRoles || []).map(r => r.role.name)
           }])
@@ -363,7 +366,7 @@ export class SolverIntegrationService {
    */
   private async saveSolverResults(
     rosterId: string,
-    staff: Array<{ id: string; employeeId: string; staffRoles?: { role: { name: string } }[] }>,
+    staff: Array<{ id: string; visibleId: string; staffRoles?: { role: { name: string } }[] }>,
     solverResponse: SolverResponse,
     startDate: Date,
     timeSlots: number,
@@ -371,13 +374,13 @@ export class SolverIntegrationService {
   ) {
     const { status, schedule, solve_time_ms, message } = solverResponse
 
-    // Create employeeId -> staffId map
-    const employeeIdToStaffId = new Map(staff.map((s) => [s.employeeId, s.id]))
+    // Create visibleId -> staffId map
+    const visibleIdToStaffId = new Map(staff.map((s) => [s.visibleId, s.id]))
     
-    // Create employeeId -> hasICRole map for IC assignment
-    const employeeIdHasICRole = new Map(
+    // Create visibleId -> hasICRole map for IC assignment
+    const visibleIdHasICRole = new Map(
       staff.map((s) => [
-        s.employeeId, 
+        s.visibleId, 
         (s.staffRoles || []).some((sr) => sr.role.name === 'IC')
       ])
     )
@@ -400,15 +403,15 @@ export class SolverIntegrationService {
     }
 
     // Debug: Log what the solver returned
-    const scheduleEmployeeIds = Object.keys(schedule)
-    console.log(`[SolverIntegration] Solver returned schedule for ${scheduleEmployeeIds.length} employees:`, scheduleEmployeeIds)
-    console.log(`[SolverIntegration] Staff map has ${staff.length} entries:`, staff.map(s => s.employeeId))
+    const scheduleVisibleIds = Object.keys(schedule)
+    console.log(`[SolverIntegration] Solver returned schedule for ${scheduleVisibleIds.length} staff:`, scheduleVisibleIds)
+    console.log(`[SolverIntegration] Staff map has ${staff.length} entries:`, staff.map(s => s.visibleId))
 
     // Determine IC states based on shift type
     // For SEVEN_E: 7=1, E=2; For APN: A=1, P=2, N=3
     const icWorkStates = shiftType === ShiftType.SEVEN_E ? [1, 2] : [1, 2, 3]
 
-    // Build schedule lookup for IC assignment: timeSlot -> state -> list of employeeIds with IC role
+    // Build schedule lookup for IC assignment: timeSlot -> state -> list of visibleIds with IC role
     const timeSlotStateICStaff: Map<number, Map<number, string[]>> = new Map()
     for (let t = 0; t < timeSlots; t++) {
       const stateMap = new Map<number, string[]>()
@@ -419,26 +422,26 @@ export class SolverIntegrationService {
     }
 
     // Populate IC-eligible staff per time slot per state
-    for (const [employeeId, stateArray] of Object.entries(schedule)) {
-      const hasICRole = employeeIdHasICRole.get(employeeId)
+    for (const [visibleId, stateArray] of Object.entries(schedule)) {
+      const hasICRole = visibleIdHasICRole.get(visibleId)
       if (!hasICRole) continue
 
       for (let t = 0; t < timeSlots; t++) {
         const state = stateArray[t]
         if (icWorkStates.includes(state)) {
-          timeSlotStateICStaff.get(t)?.get(state)?.push(employeeId)
+          timeSlotStateICStaff.get(t)?.get(state)?.push(visibleId)
         }
       }
     }
 
     // Track IC assignments per staff for round-robin fairness
     const icAssignmentCount = new Map<string, number>()
-    for (const employeeId of scheduleEmployeeIds) {
-      icAssignmentCount.set(employeeId, 0)
+    for (const visibleId of scheduleVisibleIds) {
+      icAssignmentCount.set(visibleId, 0)
     }
 
     // Assign IC for each time slot and each working state (round-robin among eligible staff)
-    const icAssignments = new Map<string, Set<number>>() // employeeId -> Set of timeSlots with IC
+    const icAssignments = new Map<string, Set<number>>() // visibleId -> Set of timeSlots with IC
     for (let t = 0; t < timeSlots; t++) {
       for (const state of icWorkStates) {
         const eligibleStaff = timeSlotStateICStaff.get(t)?.get(state) || []
@@ -450,35 +453,35 @@ export class SolverIntegrationService {
         )
 
         // Assign IC to the staff with fewest IC assignments
-        const selectedEmployeeId = eligibleStaff[0]
-        icAssignmentCount.set(selectedEmployeeId, (icAssignmentCount.get(selectedEmployeeId) || 0) + 1)
+        const selectedVisibleId = eligibleStaff[0]
+        icAssignmentCount.set(selectedVisibleId, (icAssignmentCount.get(selectedVisibleId) || 0) + 1)
         
-        if (!icAssignments.has(selectedEmployeeId)) {
-          icAssignments.set(selectedEmployeeId, new Set())
+        if (!icAssignments.has(selectedVisibleId)) {
+          icAssignments.set(selectedVisibleId, new Set())
         }
-        icAssignments.get(selectedEmployeeId)!.add(t)
+        icAssignments.get(selectedVisibleId)!.add(t)
       }
     }
 
     console.log(`[SolverIntegration] IC assignments:`, Object.fromEntries(
-      Array.from(icAssignments.entries()).map(([emp, slots]) => [emp, Array.from(slots)])
+      Array.from(icAssignments.entries()).map(([vis, slots]) => [vis, Array.from(slots)])
     ))
 
     // Transform schedule matrix to Shift records with IC assignments
     const shifts = []
-    for (const [employeeId, stateArray] of Object.entries(schedule)) {
-      const staffId = employeeIdToStaffId.get(employeeId)
+    for (const [visibleId, stateArray] of Object.entries(schedule)) {
+      const staffId = visibleIdToStaffId.get(visibleId)
       if (!staffId) {
-        console.warn(`[SolverIntegration] No staffId found for employeeId: ${employeeId}`)
+        console.warn(`[SolverIntegration] No staffId found for visibleId: ${visibleId}`)
         continue
       }
 
-      const employeeICSlots = icAssignments.get(employeeId) || new Set()
+      const staffICSlots = icAssignments.get(visibleId) || new Set()
 
       for (let t = 0; t < timeSlots; t++) {
         const state = stateArray[t]
-        // Mark as IC if this employee is assigned IC for this slot AND they are working (not OFF)
-        const isIC = employeeICSlots.has(t) && state !== 0
+        // Mark as IC if this staff is assigned IC for this slot AND they are working (not OFF)
+        const isIC = staffICSlots.has(t) && state !== 0
         
         shifts.push({
           rosterId,
@@ -534,22 +537,22 @@ export class SolverIntegrationService {
 
     // Step 2: Rebuild schedule matrix and IC assignments from shifts
     const schedule: Record<string, number[]> = {}
-    const icAssignments: Record<string, number[]> = {} // employeeId -> [time_slots with IC]
-    const staffMap = new Map<string, string>() // staffId -> employeeId
+    const icAssignments: Record<string, number[]> = {} // visibleId -> [time_slots with IC]
+    const staffMap = new Map<string, string>() // staffId -> visibleId
 
     for (const shift of roster.shifts) {
-      const employeeId = shift.staff.employeeId
-      staffMap.set(shift.staffId, employeeId)
+      const visibleId = (shift.staff as any).visibleId
+      staffMap.set(shift.staffId, visibleId)
       
-      if (!schedule[employeeId]) {
-        schedule[employeeId] = []
-        icAssignments[employeeId] = []
+      if (!schedule[visibleId]) {
+        schedule[visibleId] = []
+        icAssignments[visibleId] = []
       }
-      schedule[employeeId][shift.timeSlot] = shift.state
+      schedule[visibleId][shift.timeSlot] = shift.state
       
       // Track IC assignments (cast to access isIC field)
       if ((shift as any).isIC) {
-        icAssignments[employeeId].push(shift.timeSlot)
+        icAssignments[visibleId].push(shift.timeSlot)
       }
     }
 
@@ -564,7 +567,7 @@ export class SolverIntegrationService {
 
     const resourceAttributes = Object.fromEntries(
       staff.map((s: any) => [
-        s.employeeId,
+        s.visibleId,
         {
           gender: s.gender,
           roles: s.staffRoles.map((sr: any) => sr.role.name),

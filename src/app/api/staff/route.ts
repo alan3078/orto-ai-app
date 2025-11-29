@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sortStaff } from '@/lib/staff-sort'
+import { hash } from 'bcryptjs'
 
 export async function GET() {
   try {
     const staff = await prisma.staff.findMany({
-      where: { isActive: true },
-      include: { staffRoles: { include: { role: true } } },
+      where: { isActive: true, deletedAt: null },
+      include: { 
+        user: { select: { name: true, email: true } },
+        staffRoles: { include: { role: true } },
+      },
     })
 
     const sorted = sortStaff(staff)
@@ -20,20 +24,33 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, email, employeeId } = body
+    const { name, email, visibleId, password } = body
 
-    if (!name || !employeeId) {
-      return NextResponse.json({ error: 'Name and Employee ID are required' }, { status: 400 })
+    if (!name || !email || !visibleId) {
+      return NextResponse.json({ error: 'Name, Email and Staff ID are required' }, { status: 400 })
     }
 
-    const staff = await prisma.staff.create({
+    const passwordHash = await hash(password || 'changeme123', 12)
+
+    // Create User + Staff together
+    const user = await prisma.user.create({
       data: {
+        email,
         name,
-        email: email || null,
-        employeeId,
+        passwordHash,
+        role: 'MEMBER',
+        isActive: true,
+        mustResetPassword: true,
+        staff: {
+          create: {
+            visibleId,
+            isActive: true,
+          },
+        },
       },
+      include: { staff: true },
     })
-    return NextResponse.json(staff, { status: 201 })
+    return NextResponse.json(user.staff, { status: 201 })
   } catch (error) {
     console.error('Failed to create staff:', error)
     return NextResponse.json({ error: 'Failed to create staff' }, { status: 500 })

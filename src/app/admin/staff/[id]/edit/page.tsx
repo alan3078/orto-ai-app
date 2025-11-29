@@ -20,7 +20,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    employeeId: '',
+    visibleId: '',
   })
 
   useEffect(() => {
@@ -30,9 +30,9 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
         if (!res.ok) throw new Error('Failed to load staff')
         const staff = await res.json()
         setFormData({
-          name: staff.name,
-          email: staff.email || '',
-          employeeId: staff.employee_id,
+          name: staff.user?.name || '',
+          email: staff.user?.email || '',
+          visibleId: staff.visible_id || staff.visibleId || '',
         })
       } catch (error) {
         console.error('Failed to load staff:', error)
@@ -107,12 +107,12 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="employeeId">Employee ID</Label>
+                <Label htmlFor="visibleId">Staff ID</Label>
                 <Input
-                  id="employeeId"
-                  value={formData.employeeId}
-                  onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                  placeholder="EMP001"
+                  id="visibleId"
+                  value={formData.visibleId}
+                  onChange={(e) => setFormData({ ...formData, visibleId: e.target.value })}
+                  placeholder="NUR001"
                   required
                 />
               </div>
@@ -125,6 +125,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="john@example.com"
+                  required
                 />
               </div>
 

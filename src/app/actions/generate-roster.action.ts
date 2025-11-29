@@ -59,11 +59,10 @@ export async function generateRosterAction(params: {
     })
 
     const staff = await prisma.staff.findMany({
-      where: { id: { in: staffIds }, isActive: true },
+      where: { id: { in: staffIds }, isActive: true, deletedAt: null },
       select: {
-        employeeId: true,
+        visibleId: true,
         gender: true,
-        monthlyMaxHours: true,
         staffRoles: {
           include: { role: true },
           orderBy: { role: { order: 'asc' } },

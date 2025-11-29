@@ -4,9 +4,10 @@ import { StaffRank, RoleName } from '@/types/enums'
 type Maybe<T> = T | null | undefined
 
 type StaffLike = {
-  name?: string
+  visibleId?: string
   rank?: Maybe<string>
   gender?: Maybe<Gender>
+  user?: { name?: string | null } | null
   staffRoles?: Array<{ role?: { name?: string | null } | null }>
 }
 
@@ -50,9 +51,9 @@ export function staffComparator<A extends StaffLike>(a: A, b: A): number {
   const bg = getGenderOrder(b.gender)
   if (ag !== bg) return ag - bg
 
-  // 4) Tiebreaker: name ASC
-  const an = (a.name || '').toLowerCase()
-  const bn = (b.name || '').toLowerCase()
+  // 4) Tiebreaker: name ASC (from user relation)
+  const an = (a.user?.name || a.visibleId || '').toLowerCase()
+  const bn = (b.user?.name || b.visibleId || '').toLowerCase()
   if (an < bn) return -1
   if (an > bn) return 1
   return 0

@@ -135,12 +135,12 @@ export async function fetchShiftTypeHoursConfig(
  * Build working hours constraints from shift type config.
  * Converts min/max hours per month to min/max shifts per staff.
  * @param hoursConfig - Shift type hours configuration
- * @param staffList - List of staff with employeeId
+ * @param staffList - List of staff with visibleId
  * @param timeSlots - Number of time slots (days) in the roster period
  */
 export function buildWorkingHoursConstraints(
   hoursConfig: ShiftTypeHoursConfig,
-  staffList: Array<{ employeeId: string }>,
+  staffList: Array<{ visibleId: string }>,
   timeSlots: number
 ): SystemConstraint[] {
   const constraints: SystemConstraint[] = []
@@ -159,11 +159,11 @@ export function buildWorkingHoursConstraints(
   for (const staff of staffList) {
     // Min work constraint: max OFF days = totalSlots - minShifts
     constraints.push({
-      name: `Working Hours Min (${staff.employeeId})`,
+      name: `Working Hours Min (${staff.visibleId})`,
       type: 'resource_state_count',
       config: {
         type: 'resource_state_count',
-        resource: staff.employeeId,
+        resource: staff.visibleId,
         time_slots: timeSlotArray,
         target_state: 0, // OFF state
         operator: '<=',
@@ -175,11 +175,11 @@ export function buildWorkingHoursConstraints(
     
     // Max work constraint: min OFF days = totalSlots - maxShifts
     constraints.push({
-      name: `Working Hours Max (${staff.employeeId})`,
+      name: `Working Hours Max (${staff.visibleId})`,
       type: 'resource_state_count',
       config: {
         type: 'resource_state_count',
-        resource: staff.employeeId,
+        resource: staff.visibleId,
         time_slots: timeSlotArray,
         target_state: 0, // OFF state
         operator: '>=',
@@ -199,7 +199,7 @@ export function buildWorkingHoursConstraints(
  */
 export async function buildSystemConstraints(
   policies: SystemPolicy[],
-  staffList: Array<{ employeeId: string }>,
+  staffList: Array<{ visibleId: string }>,
   availableStates: number[] = [0, 1]
 ): Promise<SystemConstraint[]> {
   const constraints: SystemConstraint[] = []
@@ -224,16 +224,15 @@ export async function buildSystemConstraints(
 
 /**
  * Build resource attributes map for solver (FN/ADM/STF/007)
- * @param staffList - Staff with extended attributes (gender, roles, monthly hours)
+ * @param staffList - Staff with extended attributes (gender, roles)
  */
 export function buildResourceAttributes(
   staffList: Array<{
-    employeeId: string
+    visibleId: string
     gender?: string | null
-    monthlyMaxHours?: number | null
     staffRoles?: Array<{ role: { name: string; order: number } }>
   }>
-): Record<string, { gender?: string; rolesOrdered?: string[]; monthlyMaxHours?: number }> {
+): Record<string, { gender?: string; rolesOrdered?: string[] }> {
   const attributes: Record<string, any> = {}
 
   for (const staff of staffList) {
@@ -248,13 +247,9 @@ export function buildResourceAttributes(
       attr.rolesOrdered = staff.staffRoles.map((sr) => sr.role.name)
     }
 
-    if (staff.monthlyMaxHours !== null && staff.monthlyMaxHours !== undefined) {
-      attr.monthlyMaxHours = staff.monthlyMaxHours
-    }
-
     // Only include if at least one attribute present
     if (Object.keys(attr).length > 0) {
-      attributes[staff.employeeId] = attr
+      attributes[staff.visibleId] = attr
     }
   }
 
@@ -266,7 +261,7 @@ export function buildResourceAttributes(
  */
 function deriveConstraint(
   policy: SystemPolicy,
-  staffList: Array<{ employeeId: string }>,
+  staffList: Array<{ visibleId: string }>,
   availableStates: number[]
 ): SystemConstraint | SystemConstraint[] | null {
   const { type, key, label, value, priority } = policy
@@ -298,7 +293,7 @@ function deriveNurseSafety(
   label: string,
   value: Record<string, unknown>,
   priority: number,
-  staffList: Array<{ employeeId: string }>,
+  staffList: Array<{ visibleId: string }>,
   availableStates: number[]
 ): SystemConstraint | SystemConstraint[] | null {
   if (key === 'max_consecutive_nights') {
@@ -331,11 +326,11 @@ function deriveNurseSafety(
 
     // Generate one constraint per staff
     const constraints: SystemConstraint[] = staffList.map((staff) => ({
-      name: `${label} (${staff.employeeId})`,
+      name: `${label} (${staff.visibleId})`,
       type: 'horizontal_sum',
       config: {
         type: 'horizontal_sum',
-        resource: staff.employeeId,
+        resource: staff.visibleId,
         time_slots: timeSlots,
         target_state: nightState!,
         operator: '<=',
@@ -385,11 +380,11 @@ function deriveNurseSafety(
 
     // Generate sliding_window constraint per staff
     const constraints: SystemConstraint[] = staffList.map((staff) => ({
-      name: `${label} (${staff.employeeId})`,
+      name: `${label} (${staff.visibleId})`,
       type: 'sliding_window',
       config: {
         type: 'sliding_window',
-        resource: staff.employeeId,
+        resource: staff.visibleId,
         work_days: workDays,
         rest_days: restDays,
         target_state: nightState!,
@@ -447,7 +442,7 @@ function deriveFairness(
   label: string,
   value: Record<string, unknown>,
   priority: number,
-  staffList: Array<{ employeeId: string }>,
+  staffList: Array<{ visibleId: string }>,
   availableStates: number[]
 ): SystemConstraint | SystemConstraint[] | null {
   if (key === 'night_distribution') {
@@ -473,11 +468,11 @@ function deriveFairness(
     for (const staff of staffList) {
       // Minimum night shifts
       constraints.push({
-        name: `${label} Min (${staff.employeeId})`,
+        name: `${label} Min (${staff.visibleId})`,
         type: 'resource_state_count',
         config: {
           type: 'resource_state_count',
-          resource: staff.employeeId,
+          resource: staff.visibleId,
           time_slots: timeSlots,
           target_state: nightState!,
           operator: '>=',
@@ -489,11 +484,11 @@ function deriveFairness(
 
       // Maximum night shifts
       constraints.push({
-        name: `${label} Max (${staff.employeeId})`,
+        name: `${label} Max (${staff.visibleId})`,
         type: 'resource_state_count',
         config: {
           type: 'resource_state_count',
-          resource: staff.employeeId,
+          resource: staff.visibleId,
           time_slots: timeSlots,
           target_state: nightState!,
           operator: '<=',

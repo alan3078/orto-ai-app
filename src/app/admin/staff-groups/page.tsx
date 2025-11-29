@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { LookupModal } from '@/components/ui/lookup-modal'
-import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -11,18 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, Edit, Trash2, Users } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-
-async function getStaffGroups() {
-  const res = await fetch('/api/staff-groups')
-  if (!res.ok) throw new Error('Failed to load groups')
-  return res.json()
-}
-
-async function getStaff() {
-  const res = await fetch('/api/staff')
-  if (!res.ok) throw new Error('Failed to load staff')
-  return res.json()
-}
+import { useStaff } from '@/features/dashboard/hooks/use-staff'
+import { useStaffGroups } from '@/features/dashboard/hooks/use-staff-groups'
 
 export default function StaffGroupsPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -30,18 +20,12 @@ export default function StaffGroupsPage() {
   const [targetGroupId, setTargetGroupId] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  const { data: groups, isLoading } = useQuery({
-    queryKey: ['staff-groups'],
-    queryFn: getStaffGroups,
-  })
-  const { data: staff, isLoading: staffLoading } = useQuery({
-    queryKey: ['staff'],
-    queryFn: getStaff,
-  })
+  const { data: groups, isLoading } = useStaffGroups()
+  const { data: staff, isLoading: staffLoading } = useStaff()
 
-  const filteredGroups = groups?.filter((group: { name: string; description: string }) =>
+  const filteredGroups = groups?.filter((group) =>
     group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    group.description.toLowerCase().includes(searchQuery.toLowerCase())
+    (group.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
   ) || []
 
   return (
@@ -98,12 +82,7 @@ export default function StaffGroupsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredGroups.map((group: { 
-                    id: string
-                    name: string
-                    description: string
-                    memberCount: number
-                  }) => (
+                  filteredGroups.map((group) => (
                     <TableRow key={group.id}>
                       <TableCell className="font-medium">{group.name}</TableCell>
                       <TableCell>{group.description}</TableCell>
@@ -140,7 +119,7 @@ export default function StaffGroupsPage() {
         open={showAddMembers}
         title="Add Staff to Group"
         multiple
-        items={staff?.map((s: any) => ({ id: s.id, name: s.name, email: s.email }))}
+        items={staff?.map((s) => ({ id: s.id, name: s.user?.name ?? s.visibleId, email: s.user?.email }))}
         isLoading={staffLoading}
         onClose={() => { setShowAddMembers(false); setTargetGroupId(null) }}
         onSelect={async (items) => {

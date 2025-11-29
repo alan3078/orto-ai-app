@@ -11,9 +11,9 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { LookupModal } from '@/components/ui/lookup-modal'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table'
-import { useQuery } from '@tanstack/react-query'
 import { Skeleton } from '@/components/ui/skeleton'
 import { use } from 'react'
+import { useStaff } from '@/features/dashboard/hooks/use-staff'
 
 export default function EditUserGroupPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -24,14 +24,7 @@ export default function EditUserGroupPage({ params }: { params: Promise<{ id: st
   const [showLookup, setShowLookup] = useState(false)
   const [members, setMembers] = useState<any[]>([])
 
-  const { data: staff, isLoading: staffLoading } = useQuery({
-    queryKey: ['staff'],
-    queryFn: async () => {
-      const res = await fetch('/api/staff')
-      if (!res.ok) throw new Error('Failed to load staff')
-      return res.json()
-    },
-  })
+  const { data: staff, isLoading: staffLoading } = useStaff()
 
   useEffect(() => {
     async function loadGroup() {
@@ -208,7 +201,7 @@ export default function EditUserGroupPage({ params }: { params: Promise<{ id: st
         open={showLookup}
         title="Select Staff"
         multiple
-        items={staff?.map((s: any) => ({ id: s.id, name: s.name, email: s.email }))}
+        items={staff?.map((s) => ({ id: s.id, name: s.user?.name ?? s.visibleId, email: s.user?.email }))}
         isLoading={staffLoading}
         onClose={() => setShowLookup(false)}
         onSelect={(items) => addMembers(items)}

@@ -16,28 +16,34 @@ datasource db {
 // Core Models (camelCase to match existing codebase & earlier migrations)
 // ----------------------------------------------------------------------------
 
+// Staff: Scheduling & HR data. Always linked 1:1 with User.
+// - name/email derived from User (master)
+// - Soft delete: set deletedAt instead of hard delete
+// - When User is soft-deleted, Staff is also soft-deleted (handled in app logic)
 model Staff {
   id           String      @id @default(cuid())
-  employeeId   String      @unique @map("employee_id")
-  name         String
+  visibleId    String      @unique @map("visible_id") // Display ID shown in UI (e.g., "S001")
   rank         String?     // SNO, SRN, RN, RN-CW, etc.
-  email        String?
   isActive     Boolean     @default(true) @map("is_active")
   staffGroupId String?     @map("staff_group_id")
   staffGroup   StaffGroup? @relation(fields: [staffGroupId], references: [id])
   shifts       Shift[]
   // Extended attributes (FN/ADM/STF/007)
   gender          Gender?    @map("gender")
-  monthlyMinHours Int?       @map("monthly_min_hours")
-  monthlyMaxHours Int?       @map("monthly_max_hours")
   staffRoles      StaffRole[]
+  // 1:1 required link to User (User is master for name/email)
+  userId       String      @unique @map("user_id")
+  user         User        @relation(fields: [userId], references: [id])
+  // Soft delete
+  deletedAt    DateTime?   @map("deleted_at")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
-  @@index([employeeId])
+  @@index([visibleId])
   @@index([isActive])
   @@index([staffGroupId])
   @@index([rank])
+  @@index([deletedAt])
   @@map("staff")
 }
 
@@ -248,4 +254,43 @@ model SystemConfigItem {
   @@index([isActive])
   @@index([type])
   @@map("system_config_item")
+}
+
+// ----------------------------------------------------------------------------
+// User Authentication Models (FN/ADM/AUTH/001)
+// ----------------------------------------------------------------------------
+
+enum UserRole {
+  MANAGER   // Full access to all features
+  MEMBER    // Limited access: view roster, submit requests
+}
+
+// User: Authentication & master identity. Always linked 1:1 with Staff.
+// - username for login, email for password reset
+// - name is the display name (source of truth, Staff derives from here)
+// - Soft delete: set deletedAt instead of hard delete
+// - When deleted, both User and Staff get deletedAt set (handled in app logic)
+model User {
+  id               String    @id @default(cuid())
+  username         String    @unique                    // Login identifier
+  email            String?   @unique                    // For password reset only
+  passwordHash     String    @map("password_hash")
+  name             String                               // Display name
+  role             UserRole  @default(MEMBER)
+  isActive         Boolean   @default(true) @map("is_active")
+  mustResetPassword Boolean  @default(true) @map("must_reset_password")
+  tosAcceptedAt    DateTime? @map("tos_accepted_at")
+  lastLoginAt      DateTime? @map("last_login_at")
+  staff            Staff?    // 1:1 backlink (Staff has the FK)
+  // Soft delete
+  deletedAt        DateTime? @map("deleted_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([username])
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("user")
 }

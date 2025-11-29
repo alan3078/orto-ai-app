@@ -51,15 +51,16 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
   }
 
   // Helper to get staff display name and rank
-  const getStaffDisplay = (employeeId: string) => {
-    const staff = staffMap[employeeId]
+  const getStaffDisplay = (visibleId: string) => {
+    const staff = staffMap[visibleId]
     if (staff) {
+      const displayName = staff.user?.name || staff.visibleId
       return {
-        name: staff.isIC ? `${staff.name} (IC)` : staff.name,
+        name: staff.isIC ? `${displayName} (IC)` : displayName,
         rank: staff.rank || '',
       }
     }
-    return { name: employeeId, rank: '' }
+    return { name: visibleId, rank: '' }
   }
 
   // Show validate button if no results yet

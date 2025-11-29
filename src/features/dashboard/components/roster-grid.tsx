@@ -172,8 +172,8 @@ export function RosterGrid({ month }: RosterGridProps) {
                     {staff.rank || '-'}
                   </TableCell>
                   <TableCell className='sticky left-[80px] z-10 bg-background w-[180px] min-w-[180px] font-medium border-r shadow-[4px_0_24px_-2px_rgba(0,0,0,0.1)]'>
-                    <div className="truncate max-w-[160px]" title={staff.name}>
-                      {staff.name}
+                    <div className="truncate max-w-[160px]" title={staff.user?.name || staff.visibleId}>
+                      {staff.user?.name || staff.visibleId}
                     </div>
                   </TableCell>
                   {shifts.map((shift: any, i: number) => {

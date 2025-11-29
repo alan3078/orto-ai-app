@@ -7,25 +7,16 @@ import { Gender } from '@prisma/client'
 
 export const createStaffSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  rank: z.string().optional(),
-  employeeId: z
-    .string()
-    .regex(/^[A-Z0-9]{3,20}$/, 'Employee ID must be 3-20 uppercase alphanumeric characters'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
+  rank: z.string().optional(),
+  visibleId: z
+    .string()
+    .regex(/^[A-Z0-9]{3,20}$/, 'Staff ID must be 3-20 uppercase alphanumeric characters'),
   // FN/ADM/STF/007 - Extended attributes
   gender: z.nativeEnum(Gender).optional(),
   roleIds: z.array(z.string()).optional(),
-  monthlyMinHours: z.number().int().min(0).optional(),
-  monthlyMaxHours: z.number().int().min(0).optional(),
-}).refine(
-  (data) => {
-    if (data.monthlyMinHours !== undefined && data.monthlyMaxHours !== undefined) {
-      return data.monthlyMinHours <= data.monthlyMaxHours
-    }
-    return true
-  },
-  { message: 'Min hours must be less than or equal to max hours', path: ['monthlyMaxHours'] }
-)
+  password: z.string().min(8, 'Password must be at least 8 characters').optional(),
+})
 
 export type CreateStaffDto = z.infer<typeof createStaffSchema>
 

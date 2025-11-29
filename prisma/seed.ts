@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import type { Prisma, Constraint, ShiftType } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
+import { hash } from 'bcryptjs'
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -9,6 +10,43 @@ const pool = new Pool({
 
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
+
+// Helper to create User + Staff together (1:1 relationship)
+async function createUserWithStaff(data: {
+  username: string
+  email?: string
+  name: string
+  password: string
+  role: 'MANAGER' | 'MEMBER'
+  visibleId: string
+  rank?: string
+  gender?: 'M' | 'F'
+}) {
+  const passwordHash = await hash(data.password, 12)
+  
+  const user = await prisma.user.create({
+    data: {
+      username: data.username,
+      email: data.email || null,
+      name: data.name,
+      passwordHash,
+      role: data.role,
+      isActive: true,
+      mustResetPassword: data.role === 'MEMBER', // Members must reset, managers don't for convenience
+      staff: {
+        create: {
+          visibleId: data.visibleId,
+          rank: data.rank,
+          gender: data.gender,
+          isActive: true,
+        },
+      },
+    },
+    include: { staff: true },
+  })
+  
+  return user
+}
 
 async function main() {
   console.log('🌱 Seeding database...')
@@ -25,10 +63,34 @@ async function main() {
     await prisma.$executeRawUnsafe('TRUNCATE TABLE role CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE shift_definition CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE shift_type_config CASCADE')
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE "user" CASCADE')
     console.log('✅ Cleared existing data')
   } catch (e) {
     console.log('⚠️  Tables may not exist yet, continuing...')
   }
+
+  // ============================================================================
+  // Create Default Admin User (FN/ADM/AUTH/001)
+  // Admin has no Staff record (system admin, not a nurse)
+  // ============================================================================
+  const adminUsername = 'admin'
+  const adminPassword = 'password'
+  const adminPasswordHash = await hash(adminPassword, 12)
+  
+  await prisma.user.upsert({
+    where: { username: adminUsername },
+    update: {},
+    create: {
+      username: adminUsername,
+      email: null,
+      name: 'System Administrator',
+      passwordHash: adminPasswordHash,
+      role: 'MANAGER',
+      isActive: true,
+      mustResetPassword: false, // Set to false for initial setup convenience
+    },
+  })
+  console.log(`✅ Created default admin user: ${adminUsername} / ${adminPassword}`)
 
   // Create Shift Type Configurations (common config for each shift type)
   await prisma.shiftTypeConfig.upsert({
@@ -91,26 +153,43 @@ async function main() {
   // 15 nurses with various ranks and roles
   // IC role: First 9 staff (3 Male, 6 Female)
   // Non-IC role: Remaining 6 staff (all Female)
-  const staff = await Promise.all([
+  // Each staff member gets a User account (1:1 relationship)
+  const staffData = [
     // IC Role Staff (Senior nurses with IC certification)
-    prisma.staff.create({ data: { employeeId: 'NUR001', name: 'David Chen', rank: 'SNO', gender: 'M', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR002', name: 'Michael Lee', rank: 'SRN', gender: 'M', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR003', name: 'Kevin Lam', rank: 'SRN', gender: 'M', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR004', name: 'Sarah Wong', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR005', name: 'Emily Tan', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR006', name: 'Grace Liu', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR007', name: 'Rachel Cheung', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR008', name: 'Karen Yip', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR009', name: 'Michelle Hui', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
+    { visibleId: 'NUR001', username: 'david.chen', name: 'David Chen', email: 'david.chen@orto.ai', rank: 'SNO', gender: 'M' as const },
+    { visibleId: 'NUR002', username: 'michael.lee', name: 'Michael Lee', email: 'michael.lee@orto.ai', rank: 'SRN', gender: 'M' as const },
+    { visibleId: 'NUR003', username: 'kevin.lam', name: 'Kevin Lam', email: 'kevin.lam@orto.ai', rank: 'SRN', gender: 'M' as const },
+    { visibleId: 'NUR004', username: 'sarah.wong', name: 'Sarah Wong', email: 'sarah.wong@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR005', username: 'emily.tan', name: 'Emily Tan', email: 'emily.tan@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR006', username: 'grace.liu', name: 'Grace Liu', email: 'grace.liu@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR007', username: 'rachel.cheung', name: 'Rachel Cheung', email: 'rachel.cheung@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR008', username: 'karen.yip', name: 'Karen Yip', email: 'karen.yip@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR009', username: 'michelle.hui', name: 'Michelle Hui', email: 'michelle.hui@orto.ai', rank: 'RN', gender: 'F' as const },
     // Non-IC Role Staff (Junior nurses)
-    prisma.staff.create({ data: { employeeId: 'NUR010', name: 'Amy Fung', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR011', name: 'Linda Chow', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR012', name: 'Nancy Ho', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR013', name: 'Wendy Lau', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR014', name: 'Jenny Ma', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-    prisma.staff.create({ data: { employeeId: 'NUR015', name: 'Teresa Kwok', rank: 'RN', gender: 'F', monthlyMinHours: 160, monthlyMaxHours: 190 } as any }),
-  ])
-  console.log(`✅ Created ${staff.length} staff members`)
+    { visibleId: 'NUR010', username: 'amy.fung', name: 'Amy Fung', email: 'amy.fung@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR011', username: 'linda.chow', name: 'Linda Chow', email: 'linda.chow@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR012', username: 'nancy.ho', name: 'Nancy Ho', email: 'nancy.ho@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR013', username: 'wendy.lau', name: 'Wendy Lau', email: 'wendy.lau@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR014', username: 'jenny.ma', name: 'Jenny Ma', email: 'jenny.ma@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR015', username: 'teresa.kwok', name: 'Teresa Kwok', email: 'teresa.kwok@orto.ai', rank: 'RN', gender: 'F' as const },
+  ]
+
+  const users = await Promise.all(
+    staffData.map((s) =>
+      createUserWithStaff({
+        username: s.username,
+        email: s.email,
+        name: s.name,
+        password: 'nurse123', // Default password for all nurses
+        role: 'MEMBER',
+        visibleId: s.visibleId,
+        rank: s.rank,
+        gender: s.gender,
+      })
+    )
+  )
+  const staff = users.map((u) => u.staff!)
+  console.log(`✅ Created ${staff.length} staff members with user accounts`)
 
   // Single staff group for all nurses
   const masterGroup = await prisma.staffGroup.create({
@@ -456,17 +535,16 @@ async function main() {
     locked: true,
   })
 
-  // Rule #7: Post-night rest - 1 day off after ANY night shift
-  // Business rule: After finishing a night shift, must have at least 1 full day off
+  // Rule #7: Post-night rest - 2 days off after ANY night shift
+  // Business rule: After finishing a night shift, must have at least 2 full days off
   // before returning to any shift (day or night)
-  // NOTE: 2 days rest was too restrictive with only 6 female ICs covering both day & night
   await upsertItem(coreGlobal.id, 'post_night_rest', {
-    label: 'Post-Night Rest (1 Day Off After Night Shift)',
+    label: 'Post-Night Rest (2 Days Off After Night Shift)',
     type: 'nurse_safety',
     value: {
       enabled: true,
       work_days: 1,     // After 1 night shift...
-      rest_days: 1,     // ...require 1 day rest before next work (changed from 2)
+      rest_days: 2,     // ...require 2 days rest before next work
       target_state: 2,  // 7E night state (E=2); will fallback for APN
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },

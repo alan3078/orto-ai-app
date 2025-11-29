@@ -14,12 +14,13 @@ export const ROUTES = {
     ROSTER_MANAGEMENT: '/admin/roster-management',
     CONFIG: '/admin/config',
     SHIFT_SETTINGS: '/admin/config/shift-settings',
+    USERS: '/admin/users',
     PROFILE: '/admin/profile',
   },
   
   // Auth routes
   AUTH: {
-    LOGIN: '/admin/home', // TODO: Replace with actual login page when auth is implemented
+    LOGIN: '/login',
     LOGOUT: '/',
   },
   

@@ -43,8 +43,8 @@ async function main() {
     const dayRecords = shifts.filter(s => s.timeSlot === d)
     scheduleByDay.push({
       date: new Date(startDate.getTime() + d * 86400000).toISOString().slice(0, 10),
-      day_shift: dayRecords.filter(r => r.state === 1).map(r => r.staff.employeeId),
-      night_shift: dayRecords.filter(r => r.state === 2).map(r => r.staff.employeeId),
+      day_shift: dayRecords.filter(r => r.state === 1).map(r => (r.staff as any).visibleId),
+      night_shift: dayRecords.filter(r => r.state === 2).map(r => (r.staff as any).visibleId),
     })
   }
 

@@ -29,19 +29,25 @@ export async function PUT(
   const { id } = await params
   try {
     const body = await request.json()
-    const { name, email, employeeId } = body
+    const { name, email, visibleId } = body
 
-    if (!name || !employeeId) {
-      return NextResponse.json({ error: 'Name and Employee ID are required' }, { status: 400 })
+    if (!visibleId) {
+      return NextResponse.json({ error: 'Visible ID is required' }, { status: 400 })
     }
 
+    // Update staff visibleId and user name/email (User is master for name/email)
     const staff = await prisma.staff.update({
       where: { id },
       data: {
-        name,
-        email: email || null,
-        employeeId,
+        visibleId,
+        user: {
+          update: {
+            name: name || null,
+            email: email || undefined,
+          },
+        },
       },
+      include: { user: true },
     })
     return NextResponse.json(staff)
   } catch (error) {

@@ -14,12 +14,15 @@ export async function translateConstraintAction({ text }: TranslateConstraintPar
       return { success: false as const, error: 'Empty input', constraints: [] }
     }
 
-    // Fetch active staff for name → employeeId mapping
-    const staff = await prisma.staff.findMany({ where: { isActive: true }, select: { name: true, employeeId: true } })
+    // Fetch active staff for name → visibleId mapping
+    const staff = await prisma.staff.findMany({ 
+      where: { isActive: true, deletedAt: null },
+      select: { visibleId: true, user: { select: { name: true } } } 
+    })
     const nameToEmployee = new Map<string, string>()
-    staff.forEach((s: { name: string | null; employeeId: string }) => {
-      if (s.name) {
-        nameToEmployee.set(s.name.toLowerCase(), s.employeeId)
+    staff.forEach((s) => {
+      if (s.user?.name) {
+        nameToEmployee.set(s.user.name.toLowerCase(), s.visibleId)
       }
     })
 

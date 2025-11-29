@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import {
   Dialog,
   DialogContent,
@@ -30,28 +31,52 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { X } from 'lucide-react'
-import { useAddStaff } from '../hooks/use-staff'
+import { useUpdateStaff } from '../hooks/use-staff'
 import { getRolesAction } from '@/app/actions/role.actions'
-import { createStaffSchema, type CreateStaffDto } from '../services/dashboard.service'
+import { Gender } from '@prisma/client'
 
-interface AddStaffDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+const editStaffSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  email: z.string().email('Invalid email').optional().or(z.literal('')),
+  rank: z.string().optional(),
+  visibleId: z.string().regex(/^[A-Z0-9]{3,20}$/, 'Staff ID must be 3-20 uppercase alphanumeric characters'),
+  gender: z.nativeEnum(Gender).optional(),
+  roleIds: z.array(z.string()).optional(),
+})
+
+type EditStaffDto = z.infer<typeof editStaffSchema>
+
+interface StaffData {
+  id: string
+  visibleId: string
+  rank: string | null
+  gender: Gender | null
+  user?: {
+    name: string | null
+    email: string | null
+  } | null
+  staffRoles?: Array<{ role: { id: string; name: string } }>
 }
 
-export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
-  const addStaff = useAddStaff()
+interface EditStaffDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  staff: StaffData
+}
+
+export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogProps) {
+  const updateStaff = useUpdateStaff()
   const [roles, setRoles] = useState<Array<{ id: string; name: string; order: number }>>([])
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
 
-  const form = useForm<CreateStaffDto>({
-    resolver: zodResolver(createStaffSchema),
+  const form = useForm<EditStaffDto>({
+    resolver: zodResolver(editStaffSchema),
     defaultValues: {
-      name: '',
-      rank: '',
-      visibleId: '',
-      email: '',
-      gender: undefined,
+      name: staff.user?.name || '',
+      email: staff.user?.email || '',
+      rank: staff.rank || '',
+      visibleId: staff.visibleId,
+      gender: staff.gender || undefined,
       roleIds: [],
     },
   })
@@ -61,8 +86,21 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
       getRolesAction().then((result) => {
         if (result.success) setRoles(result.roles)
       })
+      // Set initial selected roles
+      const staffRoleIds = staff.staffRoles?.map(sr => sr.role.id) || []
+      setSelectedRoles(staffRoleIds)
+      
+      // Reset form with staff data
+      form.reset({
+        name: staff.user?.name || '',
+        email: staff.user?.email || '',
+        rank: staff.rank || '',
+        visibleId: staff.visibleId,
+        gender: staff.gender || undefined,
+        roleIds: staffRoleIds,
+      })
     }
-  }, [open])
+  }, [open, staff, form])
 
   const handleRoleToggle = (roleId: string) => {
     setSelectedRoles((prev) =>
@@ -74,11 +112,13 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     )
   }
 
-  const onSubmit = async (data: CreateStaffDto) => {
+  const onSubmit = async (data: EditStaffDto) => {
     try {
-      await addStaff.mutateAsync({ ...data, roleIds: selectedRoles })
-      form.reset()
-      setSelectedRoles([])
+      await updateStaff.mutateAsync({
+        id: staff.id,
+        ...data,
+        roleIds: selectedRoles,
+      })
       onOpenChange(false)
     } catch (error) {
       // Error is handled by the hook with toast
@@ -89,9 +129,9 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Staff Member</DialogTitle>
+          <DialogTitle>Edit Staff Member</DialogTitle>
           <DialogDescription>
-            Add a new staff member to the scheduling system.
+            Update staff member details.
           </DialogDescription>
         </DialogHeader>
 
@@ -220,12 +260,12 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={addStaff.isPending}
+                disabled={updateStaff.isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={addStaff.isPending}>
-                {addStaff.isPending ? 'Adding...' : 'Add Staff'}
+              <Button type="submit" disabled={updateStaff.isPending}>
+                {updateStaff.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </form>

@@ -60,7 +60,7 @@ function PointConstraintForm({
   onCancel,
   onSuccess,
 }: {
-  staff: Array<{ id: string; employeeId: string; name: string }>
+  staff: Array<{ id: string; visibleId: string; name: string }>
   onCancel: () => void
   onSuccess: () => void
 }) {
@@ -80,7 +80,7 @@ function PointConstraintForm({
 
   const onSubmit = async (data: PointConstraintFormDto) => {
     try {
-      // Find staff to get employeeId
+      // Find staff to get visibleId
       const selectedStaff = staff.find((s) => s.id === data.staffId)
       if (!selectedStaff) throw new Error('Staff not found')
 
@@ -88,7 +88,7 @@ function PointConstraintForm({
         name: data.name,
         type: 'point',
         config: {
-          resource: selectedStaff.employeeId,
+          resource: selectedStaff.visibleId,
           time_slot: data.timeSlot,
           state: data.state,
         },
@@ -137,7 +137,7 @@ function PointConstraintForm({
                     <SelectContent>
                       {staff.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
-                          {s.name} ({s.employeeId})
+                          {s.name} ({s.visibleId})
                         </SelectItem>
                       ))}
                     </SelectContent>

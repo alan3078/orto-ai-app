@@ -10,18 +10,19 @@ CREATE TYPE "ShiftType" AS ENUM ('APN', 'SEVEN_E');
 -- CreateEnum
 CREATE TYPE "SystemConfigScope" AS ENUM ('GLOBAL', 'ROSTER');
 
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('MANAGER', 'MEMBER');
+
 -- CreateTable
 CREATE TABLE "staff" (
     "id" TEXT NOT NULL,
-    "employee_id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
+    "visible_id" TEXT NOT NULL,
     "rank" TEXT,
-    "email" TEXT,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "staff_group_id" TEXT,
     "gender" "Gender",
-    "monthly_min_hours" INTEGER,
-    "monthly_max_hours" INTEGER,
+    "user_id" TEXT NOT NULL,
+    "deleted_at" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -186,6 +187,25 @@ CREATE TABLE "system_config_item" (
 );
 
 -- CreateTable
+CREATE TABLE "user" (
+    "id" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
+    "email" TEXT,
+    "password_hash" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL DEFAULT 'MEMBER',
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "must_reset_password" BOOLEAN NOT NULL DEFAULT true,
+    "tos_accepted_at" TIMESTAMP(3),
+    "last_login_at" TIMESTAMP(3),
+    "deleted_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "user_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_ConstraintToRoster" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
@@ -194,10 +214,13 @@ CREATE TABLE "_ConstraintToRoster" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "staff_employee_id_key" ON "staff"("employee_id");
+CREATE UNIQUE INDEX "staff_visible_id_key" ON "staff"("visible_id");
 
 -- CreateIndex
-CREATE INDEX "staff_employee_id_idx" ON "staff"("employee_id");
+CREATE UNIQUE INDEX "staff_user_id_key" ON "staff"("user_id");
+
+-- CreateIndex
+CREATE INDEX "staff_visible_id_idx" ON "staff"("visible_id");
 
 -- CreateIndex
 CREATE INDEX "staff_is_active_idx" ON "staff"("is_active");
@@ -207,6 +230,9 @@ CREATE INDEX "staff_staff_group_id_idx" ON "staff"("staff_group_id");
 
 -- CreateIndex
 CREATE INDEX "staff_rank_idx" ON "staff"("rank");
+
+-- CreateIndex
+CREATE INDEX "staff_deleted_at_idx" ON "staff"("deleted_at");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "role_name_key" ON "role"("name");
@@ -272,10 +298,34 @@ CREATE INDEX "system_config_item_type_idx" ON "system_config_item"("type");
 CREATE UNIQUE INDEX "system_config_item_group_id_key_key" ON "system_config_item"("group_id", "key");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "user_username_key" ON "user"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
+
+-- CreateIndex
+CREATE INDEX "user_username_idx" ON "user"("username");
+
+-- CreateIndex
+CREATE INDEX "user_email_idx" ON "user"("email");
+
+-- CreateIndex
+CREATE INDEX "user_role_idx" ON "user"("role");
+
+-- CreateIndex
+CREATE INDEX "user_is_active_idx" ON "user"("is_active");
+
+-- CreateIndex
+CREATE INDEX "user_deleted_at_idx" ON "user"("deleted_at");
+
+-- CreateIndex
 CREATE INDEX "_ConstraintToRoster_B_index" ON "_ConstraintToRoster"("B");
 
 -- AddForeignKey
 ALTER TABLE "staff" ADD CONSTRAINT "staff_staff_group_id_fkey" FOREIGN KEY ("staff_group_id") REFERENCES "staff_group"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "staff" ADD CONSTRAINT "staff_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "staff_role" ADD CONSTRAINT "staff_role_staff_id_fkey" FOREIGN KEY ("staff_id") REFERENCES "staff"("id") ON DELETE CASCADE ON UPDATE CASCADE;

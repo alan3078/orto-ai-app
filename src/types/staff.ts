@@ -18,17 +18,25 @@ export interface StaffGroup {
   name: string
 }
 
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: 'MANAGER' | 'MEMBER'
+  isActive: boolean
+  deletedAt: Date | null
+}
+
 export interface Staff {
   id: string
-  employeeId: string
-  name: string
+  visibleId: string
   rank: string | null
-  email: string | null
   isActive: boolean
   staffGroupId: string | null
   gender: Gender | null
-  monthlyMinHours: number | null
-  monthlyMaxHours: number | null
+  userId: string
+  user: User
+  deletedAt: Date | null
   createdAt: Date
   updatedAt: Date
   staffRoles: StaffRole[]
