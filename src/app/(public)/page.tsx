@@ -1,4 +1,4 @@
-import { Navbar, Hero, Features, Testimonials, Pricing, Footer } from '@/components/landing'
+import { Navbar, Hero, Features, AdminDemo, Testimonials, Pricing, Footer } from '@/components/landing'
 
 export default function LandingPage() {
   return (
@@ -6,6 +6,7 @@ export default function LandingPage() {
       <Navbar />
       <Hero />
       <Features />
+      <AdminDemo />
       <Testimonials />
       <Pricing />
       <Footer />
