@@ -28,6 +28,7 @@ model Staff {
   staffGroupId String?     @map("staff_group_id")
   staffGroup   StaffGroup? @relation(fields: [staffGroupId], references: [id])
   shifts       Shift[]
+  leaves       Leave[]     // Leave records (FN/ADM/LVE/001)
   // Extended attributes (FN/ADM/STF/007)
   gender          Gender?    @map("gender")
   staffRoles      StaffRole[]
@@ -257,12 +258,13 @@ model SystemConfigItem {
 }
 
 // ----------------------------------------------------------------------------
-// User Authentication Models (FN/ADM/AUTH/001)
+// User Authentication Models (FN/ADM/AUTH/001 & AUTH/002)
 // ----------------------------------------------------------------------------
 
 enum UserRole {
-  MANAGER   // Full access to all features
-  MEMBER    // Limited access: view roster, submit requests
+  SUPER_ADMIN  // Full system access: global config, all features
+  ADMIN        // Manager access: roster management, staff management (no system config)
+  USER         // Staff access: view roster, submit requests
 }
 
 // User: Authentication & master identity. Always linked 1:1 with Staff.
@@ -276,7 +278,7 @@ model User {
   email            String?   @unique                    // For password reset only
   passwordHash     String    @map("password_hash")
   name             String                               // Display name
-  role             UserRole  @default(MEMBER)
+  role             UserRole  @default(USER)
   isActive         Boolean   @default(true) @map("is_active")
   mustResetPassword Boolean  @default(true) @map("must_reset_password")
   tosAcceptedAt    DateTime? @map("tos_accepted_at")
@@ -293,4 +295,117 @@ model User {
   @@index([isActive])
   @@index([deletedAt])
   @@map("user")
+}
+
+// ----------------------------------------------------------------------------
+// Dynamic Permission System (FN/ADM/AUTH/002)
+// ----------------------------------------------------------------------------
+
+// Module: Represents a feature module in the system (e.g., Staff, Roster, Config)
+model PermissionModule {
+  id          String       @id @default(cuid())
+  code        String       @unique  // e.g., "staff", "roster", "system_config"
+  name        String                // e.g., "Staff Management"
+  description String?
+  icon        String?               // Lucide icon name for UI
+  sortOrder   Int          @default(0) @map("sort_order")
+  isActive    Boolean      @default(true) @map("is_active")
+  permissions Permission[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("permission_module")
+}
+
+// Permission: Specific actions within a module (e.g., staff:create, staff:read)
+model Permission {
+  id          String            @id @default(cuid())
+  moduleId    String            @map("module_id")
+  module      PermissionModule  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  code        String            @unique  // e.g., "staff:create", "staff:read", "config:global:edit"
+  name        String                     // e.g., "Create Staff"
+  description String?
+  action      String                     // create, read, update, delete, or custom actions
+  sortOrder   Int               @default(0) @map("sort_order")
+  isActive    Boolean           @default(true) @map("is_active")
+  rolePermissions RolePermission[]
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@unique([moduleId, action])
+  @@index([isActive])
+  @@index([action])
+  @@map("permission")
+}
+
+// RolePermission: Maps UserRole to Permission (which role has which permission)
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         UserRole
+  permissionId String     @map("permission_id")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  isGranted    Boolean    @default(true) @map("is_granted")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@index([permissionId])
+  @@map("role_permission")
+}
+
+// ----------------------------------------------------------------------------
+// Leave Management Models (FN/ADM/LVE/001)
+// ----------------------------------------------------------------------------
+
+enum LeaveType {
+  SL  // Sick Leave
+  PH  // Public Holiday
+  AL  // Annual Leave
+  UL  // Unpaid Leave
+  ML  // Maternity Leave
+  CL  // Compassionate Leave
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Leave: Staff leave records (sick leave, annual leave, etc.)
+model Leave {
+  id        String      @id @default(cuid())
+  staffId   String      @map("staff_id")
+  staff     Staff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  startDate DateTime    @map("start_date")
+  endDate   DateTime    @map("end_date")
+  leaveType LeaveType   @map("leave_type")
+  status    LeaveStatus @default(APPROVED)
+  notes     String?
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@index([staffId])
+  @@index([startDate, endDate])
+  @@index([leaveType])
+  @@index([status])
+  @@map("leave")
+}
+
+// PublicHoliday: Hong Kong public holidays calendar
+model PublicHoliday {
+  id          String   @id @default(cuid())
+  date        DateTime
+  name        String
+  year        Int
+  isRecurring Boolean  @default(false) @map("is_recurring")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([date])
+  @@index([year])
+  @@map("public_holiday")
 }

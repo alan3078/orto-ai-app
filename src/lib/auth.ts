@@ -47,6 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { username },
+          include: { staff: true },
         })
 
         if (!user || !user.isActive) {
@@ -72,7 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           role: user.role,
           mustResetPassword: user.mustResetPassword,
-          staffId: (user as any).staffId,
+          staffId: user.staff?.id ?? null,
         }
       },
     }),

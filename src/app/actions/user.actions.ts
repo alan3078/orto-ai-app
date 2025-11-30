@@ -5,18 +5,28 @@ import { hash } from 'bcryptjs'
 import { revalidatePath } from 'next/cache'
 import { UserRole } from '@prisma/client'
 import { auth } from '@/lib/auth'
+import { isAdmin, isSuperAdmin } from '@/lib/permissions'
 
-// Ensure only managers can perform these actions
-async function requireManager() {
+// Ensure only admins (SUPER_ADMIN or ADMIN) can perform these actions
+async function requireAdmin() {
   const session = await auth()
-  if (!session?.user || session.user.role !== 'MANAGER') {
-    throw new Error('Unauthorized: Manager access required')
+  if (!session?.user || !isAdmin(session.user.role as UserRole)) {
+    throw new Error('Unauthorized: Admin access required')
+  }
+  return session.user
+}
+
+// Ensure only super admins can perform these actions
+async function requireSuperAdmin() {
+  const session = await auth()
+  if (!session?.user || !isSuperAdmin(session.user.role as UserRole)) {
+    throw new Error('Unauthorized: Super Admin access required')
   }
   return session.user
 }
 
 export async function fetchUsers() {
-  await requireManager()
+  await requireAdmin()
   
   const users = await prisma.user.findMany({
     where: { deletedAt: null },
@@ -44,7 +54,7 @@ export async function fetchUsers() {
 }
 
 export async function createUserAction(formData: FormData) {
-  await requireManager()
+  await requireAdmin()
   
   const username = formData.get('username') as string
   const email = formData.get('email') as string | null
@@ -91,7 +101,7 @@ export async function createUserAction(formData: FormData) {
         email: email || null,
         name: name || username, // Default name to username if not provided
         passwordHash,
-        role: role || 'MEMBER',
+        role: (role as UserRole) || UserRole.USER,
         mustResetPassword: true,
       },
     })
@@ -113,7 +123,7 @@ export async function createUserAction(formData: FormData) {
 }
 
 export async function updateUserAction(formData: FormData) {
-  await requireManager()
+  await requireAdmin()
   
   const id = formData.get('id') as string
   const username = formData.get('username') as string
@@ -197,7 +207,7 @@ export async function updateUserAction(formData: FormData) {
 }
 
 export async function toggleUserActiveAction(userId: string) {
-  await requireManager()
+  await requireAdmin()
   
   const user = await prisma.user.findUnique({ where: { id: userId } })
   if (!user) {
@@ -219,7 +229,7 @@ export async function toggleUserActiveAction(userId: string) {
 }
 
 export async function resetUserPasswordAction(formData: FormData) {
-  await requireManager()
+  await requireAdmin()
   
   const userId = formData.get('userId') as string
   const newPassword = formData.get('newPassword') as string
@@ -252,7 +262,7 @@ export async function resetUserPasswordAction(formData: FormData) {
 }
 
 export async function deleteUserAction(userId: string) {
-  const currentUser = await requireManager()
+  const currentUser = await requireAdmin()
   
   // Prevent self-deletion
   if (currentUser.id === userId) {
@@ -274,7 +284,7 @@ export async function deleteUserAction(userId: string) {
 // Note: In the new model, User and Staff are always 1:1 and created together
 // This function returns staff that already have users (for reference/display)
 export async function fetchStaffForLinking() {
-  await requireManager()
+  await requireAdmin()
   
   const staff = await prisma.staff.findMany({
     where: { isActive: true },

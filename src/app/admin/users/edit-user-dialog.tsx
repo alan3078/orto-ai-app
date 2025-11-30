@@ -22,7 +22,7 @@ import {
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateUserAction, fetchStaffForLinking } from '@/app/actions/user.actions'
-import type { UserRole } from '@prisma/client'
+import { UserRole } from '@prisma/client'
 
 interface EditUserDialogProps {
   open: boolean
@@ -137,8 +137,9 @@ export function EditUserDialog({ open, onOpenChange, onSuccess, user }: EditUser
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MANAGER">Manager (Full access)</SelectItem>
-                <SelectItem value="MEMBER">Member (Limited access)</SelectItem>
+                <SelectItem value={UserRole.SUPER_ADMIN}>Super Admin (System access)</SelectItem>
+                <SelectItem value={UserRole.ADMIN}>Manager (Full access)</SelectItem>
+                <SelectItem value={UserRole.USER}>Staff (Limited access)</SelectItem>
               </SelectContent>
             </Select>
           </div>

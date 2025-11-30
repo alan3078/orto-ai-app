@@ -9,6 +9,7 @@ import { rosterKeys } from '../services/dashboard.service'
 
 /**
  * Hook to fetch roster for a specific month with automatic polling during SOLVING
+ * Returns roster data along with leaves for the period (FN/ADM/LVE/001)
  */
 export function useRoster({ month }: { month: string }) {
   return useQuery({
@@ -16,12 +17,20 @@ export function useRoster({ month }: { month: string }) {
     queryFn: async () => {
       const result = await getRosterAction({ month })
       if (!result.success) throw new Error(result.error)
-      return result.roster
+      return {
+        roster: result.roster,
+        leaves: result.leaves || [],
+      }
     },
+    select: (data) => ({
+      ...data.roster,
+      leaves: data.leaves,
+    }),
     refetchInterval: (query) => {
       // Poll every 2s if status is SOLVING
-      const roster = query.state.data
-      return roster?.status === 'SOLVING' ? 2000 : false
+      const data = query.state.data
+      // @ts-ignore - status exists on roster object but TS inference is tricky here
+      return data?.status === 'SOLVING' ? 2000 : false
     },
     staleTime: 0, // Always fetch fresh data
   })

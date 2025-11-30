@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { sortStaff } from '@/lib/staff-sort'
 import { hash } from 'bcryptjs'
-import type { Gender } from '@prisma/client'
+import { type Gender, UserRole } from '@prisma/client'
 
 /**
  * Get all active staff members with roles (FN/ADM/STF/007)
@@ -116,7 +116,7 @@ export async function createStaffAction(data: {
         email: data.email || null,
         name: data.name,
         passwordHash,
-        role: 'MEMBER',
+        role: UserRole.USER,
         isActive: true,
         mustResetPassword: true,
         staff: {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Gender } from '@prisma/client'
+import { Gender, UserRole } from '@prisma/client'
 import { toast } from 'sonner'
 import { getStaffAction, createStaffAction, deleteStaffAction, toggleStaffActiveAction, getStaffWithFilterAction, updateStaffAction } from '@/app/actions/staff.actions'
 import { staffKeys } from '../services/dashboard.service'
@@ -85,7 +85,7 @@ export function useAddStaff() {
               id: tempUserId,
               email: newStaff.email || null,
               name: newStaff.name,
-              role: 'MEMBER' as const,
+              role: UserRole.USER,
               isActive: true,
               deletedAt: null,
             },

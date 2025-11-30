@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, UserRole } from '@prisma/client'
 import type { Prisma, Constraint, ShiftType } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
@@ -17,7 +17,7 @@ async function createUserWithStaff(data: {
   email?: string
   name: string
   password: string
-  role: 'MANAGER' | 'MEMBER'
+  role: UserRole
   visibleId: string
   rank?: string
   gender?: 'M' | 'F'
@@ -32,7 +32,7 @@ async function createUserWithStaff(data: {
       passwordHash,
       role: data.role,
       isActive: true,
-      mustResetPassword: data.role === 'MEMBER', // Members must reset, managers don't for convenience
+      mustResetPassword: data.role === UserRole.USER, // Users must reset, admins don't for convenience
       staff: {
         create: {
           visibleId: data.visibleId,
@@ -57,6 +57,8 @@ async function main() {
     await prisma.$executeRawUnsafe('TRUNCATE TABLE roster CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE "_ConstraintToRoster" CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE constraint CASCADE')
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE leave CASCADE')
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE public_holiday CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE staff_role CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE staff CASCADE')
     await prisma.$executeRawUnsafe('TRUNCATE TABLE staff_group CASCADE')
@@ -85,12 +87,239 @@ async function main() {
       email: null,
       name: 'System Administrator',
       passwordHash: adminPasswordHash,
-      role: 'MANAGER',
+      role: UserRole.SUPER_ADMIN,
       isActive: true,
       mustResetPassword: false, // Set to false for initial setup convenience
     },
   })
-  console.log(`✅ Created default admin user: ${adminUsername} / ${adminPassword}`)
+  console.log(`✅ Created default super admin user: ${adminUsername} / ${adminPassword}`)
+
+  // ============================================================================
+  // Create Permission Modules and Permissions (FN/ADM/AUTH/002)
+  // ============================================================================
+  
+  // Clear existing permissions
+  try {
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE role_permission CASCADE')
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE permission CASCADE')
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE permission_module CASCADE')
+  } catch (e) {
+    console.log('⚠️  Permission tables may not exist yet, continuing...')
+  }
+
+  // Define modules with their permissions
+  const moduleDefinitions = [
+    {
+      code: 'dashboard',
+      name: 'Dashboard',
+      description: 'Home dashboard and overview',
+      icon: 'Home',
+      permissions: [
+        { action: 'read', name: 'View Dashboard', description: 'View the dashboard' },
+      ],
+    },
+    {
+      code: 'staff',
+      name: 'Staff Management',
+      description: 'Manage staff members and their information',
+      icon: 'Users',
+      permissions: [
+        { action: 'create', name: 'Create Staff', description: 'Add new staff members' },
+        { action: 'read', name: 'View Staff', description: 'View staff list and details' },
+        { action: 'update', name: 'Edit Staff', description: 'Modify staff information' },
+        { action: 'delete', name: 'Delete Staff', description: 'Remove staff members' },
+      ],
+    },
+    {
+      code: 'staff_group',
+      name: 'Staff Groups',
+      description: 'Manage staff groups and assignments',
+      icon: 'UsersRound',
+      permissions: [
+        { action: 'create', name: 'Create Group', description: 'Create new staff groups' },
+        { action: 'read', name: 'View Groups', description: 'View staff groups' },
+        { action: 'update', name: 'Edit Group', description: 'Modify staff groups' },
+        { action: 'delete', name: 'Delete Group', description: 'Delete staff groups' },
+      ],
+    },
+    {
+      code: 'leave',
+      name: 'Leave Management',
+      description: 'Manage staff leaves and holidays',
+      icon: 'CalendarDays',
+      permissions: [
+        { action: 'create', name: 'Create Leave', description: 'Add new leave records' },
+        { action: 'read', name: 'View Leave', description: 'View leave records and calendar' },
+        { action: 'update', name: 'Edit Leave', description: 'Modify leave records' },
+        { action: 'delete', name: 'Delete Leave', description: 'Delete leave records' },
+        { action: 'approve', name: 'Approve Leave', description: 'Approve or reject leave requests' },
+      ],
+    },
+    {
+      code: 'roster',
+      name: 'Roster Management',
+      description: 'Create and manage staff rosters',
+      icon: 'Calendar',
+      permissions: [
+        { action: 'create', name: 'Create Roster', description: 'Generate new rosters' },
+        { action: 'read', name: 'View Roster', description: 'View rosters and schedules' },
+        { action: 'update', name: 'Edit Roster', description: 'Modify roster assignments' },
+        { action: 'delete', name: 'Delete Roster', description: 'Delete rosters' },
+        { action: 'publish', name: 'Publish Roster', description: 'Publish rosters to staff' },
+      ],
+    },
+    {
+      code: 'constraint',
+      name: 'Constraints',
+      description: 'Manage scheduling rules and constraints',
+      icon: 'Settings2',
+      permissions: [
+        { action: 'create', name: 'Create Constraint', description: 'Add new constraints' },
+        { action: 'read', name: 'View Constraints', description: 'View constraint rules' },
+        { action: 'update', name: 'Edit Constraint', description: 'Modify constraints' },
+        { action: 'delete', name: 'Delete Constraint', description: 'Delete constraints' },
+      ],
+    },
+    {
+      code: 'user',
+      name: 'User Management',
+      description: 'Manage user accounts',
+      icon: 'UserCog',
+      permissions: [
+        { action: 'create', name: 'Create User', description: 'Create new user accounts' },
+        { action: 'read', name: 'View Users', description: 'View user list' },
+        { action: 'update', name: 'Edit User', description: 'Modify user accounts' },
+        { action: 'delete', name: 'Delete User', description: 'Delete user accounts' },
+        { action: 'reset_password', name: 'Reset Password', description: 'Reset user passwords' },
+      ],
+    },
+    {
+      code: 'role_permission',
+      name: 'Roles & Permissions',
+      description: 'Manage role permissions',
+      icon: 'ShieldCheck',
+      permissions: [
+        { action: 'read', name: 'View Permissions', description: 'View role permissions' },
+        { action: 'update', name: 'Edit Permissions', description: 'Modify role permissions' },
+      ],
+    },
+    {
+      code: 'system_config',
+      name: 'System Configuration',
+      description: 'Global system settings',
+      icon: 'Sliders',
+      permissions: [
+        { action: 'read', name: 'View Config', description: 'View system configuration' },
+        { action: 'update', name: 'Edit Config', description: 'Modify system configuration' },
+      ],
+    },
+    {
+      code: 'shift_config',
+      name: 'Shift Configuration',
+      description: 'Shift types and definitions',
+      icon: 'Clock',
+      permissions: [
+        { action: 'read', name: 'View Shifts', description: 'View shift configurations' },
+        { action: 'update', name: 'Edit Shifts', description: 'Modify shift configurations' },
+      ],
+    },
+    {
+      code: 'reports',
+      name: 'Reports',
+      description: 'View and export reports',
+      icon: 'BarChart3',
+      permissions: [
+        { action: 'read', name: 'View Reports', description: 'View reports and analytics' },
+        { action: 'export', name: 'Export Reports', description: 'Export reports to file' },
+      ],
+    },
+    {
+      code: 'request',
+      name: 'Requests',
+      description: 'Leave and schedule change requests',
+      icon: 'FileText',
+      permissions: [
+        { action: 'create', name: 'Submit Request', description: 'Submit leave/change requests' },
+        { action: 'read', name: 'View Requests', description: 'View requests' },
+        { action: 'approve', name: 'Approve Request', description: 'Approve/reject requests' },
+      ],
+    },
+  ]
+
+  // Create modules and permissions
+  for (let sortOrder = 0; sortOrder < moduleDefinitions.length; sortOrder++) {
+    const moduleDef = moduleDefinitions[sortOrder]
+    const module = await prisma.permissionModule.create({
+      data: {
+        code: moduleDef.code,
+        name: moduleDef.name,
+        description: moduleDef.description,
+        icon: moduleDef.icon,
+        sortOrder,
+        isActive: true,
+      },
+    })
+
+    for (let permOrder = 0; permOrder < moduleDef.permissions.length; permOrder++) {
+      const permDef = moduleDef.permissions[permOrder]
+      const permission = await prisma.permission.create({
+        data: {
+          moduleId: module.id,
+          code: `${moduleDef.code}:${permDef.action}`,
+          name: permDef.name,
+          description: permDef.description,
+          action: permDef.action,
+          sortOrder: permOrder,
+          isActive: true,
+        },
+      })
+
+      // Grant all permissions to SUPER_ADMIN
+      await prisma.rolePermission.create({
+        data: {
+          role: UserRole.SUPER_ADMIN,
+          permissionId: permission.id,
+          isGranted: true,
+        },
+      })
+
+      // Grant most permissions to ADMIN (except system config and role management edit)
+      const adminDenied = [
+        'system_config:update',
+        'role_permission:update',
+        'shift_config:update',
+      ]
+      if (!adminDenied.includes(`${moduleDef.code}:${permDef.action}`)) {
+        await prisma.rolePermission.create({
+          data: {
+            role: UserRole.ADMIN,
+            permissionId: permission.id,
+            isGranted: true,
+          },
+        })
+      }
+
+      // Grant limited permissions to USER
+      const userAllowed = [
+        'dashboard:read',
+        'roster:read',
+        'leave:read',     // View leave calendar and records
+        'leave:create',   // Create own leave (server validates ownership)
+        'request:create',
+        'request:read',
+      ]
+      if (userAllowed.includes(`${moduleDef.code}:${permDef.action}`)) {
+        await prisma.rolePermission.create({
+          data: {
+            role: UserRole.USER,
+            permissionId: permission.id,
+            isGranted: true,
+          },
+        })
+      }
+    }
+  }
+  console.log('✅ Created permission modules and permissions with default role assignments')
 
   // Create Shift Type Configurations (common config for each shift type)
   await prisma.shiftTypeConfig.upsert({
@@ -180,8 +409,8 @@ async function main() {
         username: s.username,
         email: s.email,
         name: s.name,
-        password: 'nurse123', // Default password for all nurses
-        role: 'MEMBER',
+        password: 'password',
+        role: UserRole.USER,
         visibleId: s.visibleId,
         rank: s.rank,
         gender: s.gender,
@@ -615,6 +844,84 @@ async function main() {
   //          seven_e_female_ic_night, seven_e_block_transition
 
   console.log('✅ Seeded system configuration groups and items (upserted)')
+
+  // ============================================================================
+  // Seed Public Holidays (FN/ADM/LVE/001)
+  // Hong Kong Public Holidays for 2025 and 2026
+  // ============================================================================
+  
+  const publicHolidays2025 = [
+    { date: '2025-01-01', name: "New Year's Day" },
+    { date: '2025-01-29', name: 'Lunar New Year Day 1' },
+    { date: '2025-01-30', name: 'Lunar New Year Day 2' },
+    { date: '2025-01-31', name: 'Lunar New Year Day 3' },
+    { date: '2025-02-01', name: 'Lunar New Year Day 4 (substitute)' },
+    { date: '2025-04-04', name: 'Ching Ming Festival' },
+    { date: '2025-04-18', name: 'Good Friday' },
+    { date: '2025-04-19', name: 'Day after Good Friday' },
+    { date: '2025-04-21', name: 'Easter Monday' },
+    { date: '2025-05-01', name: 'Labour Day' },
+    { date: '2025-05-05', name: "Buddha's Birthday" },
+    { date: '2025-05-31', name: 'Tuen Ng Festival' },
+    { date: '2025-07-01', name: 'HKSAR Establishment Day' },
+    { date: '2025-10-01', name: 'National Day' },
+    { date: '2025-10-07', name: 'Day after Mid-Autumn Festival' },
+    { date: '2025-10-29', name: 'Chung Yeung Festival' },
+    { date: '2025-12-25', name: 'Christmas Day' },
+    { date: '2025-12-26', name: 'Day after Christmas' },
+  ]
+
+  const publicHolidays2026 = [
+    { date: '2026-01-01', name: "New Year's Day" },
+    { date: '2026-02-17', name: 'Lunar New Year Day 1' },
+    { date: '2026-02-18', name: 'Lunar New Year Day 2' },
+    { date: '2026-02-19', name: 'Lunar New Year Day 3' },
+    { date: '2026-02-20', name: 'Lunar New Year Day 4 (substitute)' },
+    { date: '2026-04-04', name: 'Ching Ming Festival' },
+    { date: '2026-04-03', name: 'Good Friday' },
+    { date: '2026-04-04', name: 'Day after Good Friday' },
+    { date: '2026-04-06', name: 'Easter Monday' },
+    { date: '2026-05-01', name: 'Labour Day' },
+    { date: '2026-05-24', name: "Buddha's Birthday" },
+    { date: '2026-06-19', name: 'Tuen Ng Festival' },
+    { date: '2026-07-01', name: 'HKSAR Establishment Day' },
+    { date: '2026-09-26', name: 'Day after Mid-Autumn Festival' },
+    { date: '2026-10-01', name: 'National Day' },
+    { date: '2026-10-18', name: 'Chung Yeung Festival (substitute)' },
+    { date: '2026-12-25', name: 'Christmas Day' },
+    { date: '2026-12-26', name: 'Day after Christmas' },
+  ]
+
+  // Upsert public holidays (avoid duplicates on re-seed)
+  for (const holiday of publicHolidays2025) {
+    const holidayDate = new Date(holiday.date + 'T00:00:00Z')
+    await prisma.publicHoliday.upsert({
+      where: { date: holidayDate },
+      update: { name: holiday.name },
+      create: {
+        date: holidayDate,
+        name: holiday.name,
+        year: 2025,
+        isRecurring: false,
+      },
+    })
+  }
+
+  for (const holiday of publicHolidays2026) {
+    const holidayDate = new Date(holiday.date + 'T00:00:00Z')
+    await prisma.publicHoliday.upsert({
+      where: { date: holidayDate },
+      update: { name: holiday.name },
+      create: {
+        date: holidayDate,
+        name: holiday.name,
+        year: 2026,
+        isRecurring: false,
+      },
+    })
+  }
+
+  console.log('✅ Seeded public holidays for 2025 and 2026')
 
   console.log('🎉 Seeding complete!')
 }

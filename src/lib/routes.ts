@@ -11,10 +11,12 @@ export const ROUTES = {
     HOME: '/admin/home',
     STAFF: '/admin/staff',
     STAFF_GROUPS: '/admin/staff-groups',
+    LEAVES: '/admin/leaves',
     ROSTER_MANAGEMENT: '/admin/roster-management',
     CONFIG: '/admin/config',
     SHIFT_SETTINGS: '/admin/config/shift-settings',
     USERS: '/admin/users',
+    ROLES: '/admin/roles',
     PROFILE: '/admin/profile',
   },
   

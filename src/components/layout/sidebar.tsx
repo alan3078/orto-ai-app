@@ -7,29 +7,109 @@ import {
   Home, 
   Users, 
   UsersRound, 
-  Calendar, 
+  Calendar,
+  CalendarDays, 
   ChevronLeft,
   ChevronRight,
   Sliders,
-  UserCog
+  UserCog,
+  ShieldCheck,
+  type LucideIcon
 } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ROUTES } from '@/lib/routes'
+import { UserRole } from '@prisma/client'
+import { isSuperAdmin } from '@/lib/permissions'
 
-const menuItems = [
+interface MenuItem {
+  icon: LucideIcon
+  label: string
+  href: string
+  /** Required permission code (e.g., "staff:read") */
+  permissionCode?: string
+  /** Only show for super admin */
+  superAdminOnly?: boolean
+}
+
+const menuItems: MenuItem[] = [
   { icon: Home, label: 'Home', href: ROUTES.ADMIN.HOME },
-  { icon: UserCog, label: 'User Management', href: ROUTES.ADMIN.USERS },
-  { icon: Users, label: 'Staff', href: ROUTES.ADMIN.STAFF },
-  { icon: UsersRound, label: 'Staff Groups', href: ROUTES.ADMIN.STAFF_GROUPS },
-  { icon: Calendar, label: 'Roster Management', href: ROUTES.ADMIN.ROSTER_MANAGEMENT },
-  { icon: Sliders, label: 'System Config', href: ROUTES.ADMIN.CONFIG },
+  { 
+    icon: UserCog, 
+    label: 'User Management', 
+    href: ROUTES.ADMIN.USERS,
+    permissionCode: 'user:read'
+  },
+  { 
+    icon: ShieldCheck, 
+    label: 'Roles & Permissions', 
+    href: ROUTES.ADMIN.ROLES,
+    permissionCode: 'role_permission:read'
+  },
+  { 
+    icon: Users, 
+    label: 'Staff', 
+    href: ROUTES.ADMIN.STAFF,
+    permissionCode: 'staff:read'
+  },
+  { 
+    icon: UsersRound, 
+    label: 'Staff Groups', 
+    href: ROUTES.ADMIN.STAFF_GROUPS,
+    permissionCode: 'staff_group:read'
+  },
+  { 
+    icon: CalendarDays, 
+    label: 'Leave Management', 
+    href: ROUTES.ADMIN.LEAVES,
+    permissionCode: 'leave:read'
+  },
+  { 
+    icon: Calendar, 
+    label: 'Roster Management', 
+    href: ROUTES.ADMIN.ROSTER_MANAGEMENT,
+    permissionCode: 'roster:read'
+  },
+  { 
+    icon: Sliders, 
+    label: 'System Config', 
+    href: ROUTES.ADMIN.CONFIG,
+    permissionCode: 'system_config:read'
+  },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  userRole: UserRole
+  grantedPermissions?: string[]
+}
+
+export function Sidebar({ userRole, grantedPermissions = [] }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  
+  const permissionSet = useMemo(() => new Set(grantedPermissions), [grantedPermissions])
+  const isSuperAdminUser = isSuperAdmin(userRole)
+
+  // Filter menu items based on user permissions
+  const visibleMenuItems = useMemo(() => menuItems.filter((item) => {
+    // No permission requirement = visible to all
+    if (!item.permissionCode && !item.superAdminOnly) {
+      return true
+    }
+    
+    // Super admin always sees everything
+    if (isSuperAdminUser) {
+      return true
+    }
+    
+    // Check permission code
+    if (item.permissionCode) {
+      return permissionSet.has(item.permissionCode)
+    }
+    
+    return false
+  }), [permissionSet, isSuperAdminUser])
 
   return (
     <aside
@@ -69,7 +149,7 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
             

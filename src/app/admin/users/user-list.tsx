@@ -35,7 +35,8 @@ import { toggleUserActiveAction, deleteUserAction } from '@/app/actions/user.act
 import { CreateUserDialog } from './create-user-dialog'
 import { EditUserDialog } from './edit-user-dialog'
 import { ResetPasswordDialog } from './reset-password-dialog'
-import type { UserRole } from '@prisma/client'
+import { UserRole } from '@prisma/client'
+import { getRoleDisplayName, isAdmin } from '@/lib/permissions'
 
 type User = {
   id: string
@@ -139,11 +140,11 @@ export function UserList({ initialUsers }: UserListProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.role === 'MANAGER' ? 'default' : 'secondary'}>
-                      {user.role === 'MANAGER' ? (
-                        <><Shield className="h-3 w-3 mr-1" /> Manager</>
+                    <Badge variant={isAdmin(user.role) ? 'default' : 'secondary'}>
+                      {isAdmin(user.role) ? (
+                        <><Shield className="h-3 w-3 mr-1" /> {getRoleDisplayName(user.role)}</>
                       ) : (
-                        <><UserIcon className="h-3 w-3 mr-1" /> Member</>
+                        <><UserIcon className="h-3 w-3 mr-1" /> {getRoleDisplayName(user.role)}</>
                       )}
                     </Badge>
                   </TableCell>

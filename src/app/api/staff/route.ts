@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         email: email || null,
         name,
         passwordHash,
-        role: UserRole.MEMBER,
+        role: UserRole.USER,
         isActive: true,
         mustResetPassword: true,
         staff: {

@@ -32,7 +32,10 @@ export function middleware(req: NextRequest) {
     )
   }
 
-  return NextResponse.next()
+  // Set pathname header for route permission checking in layout
+  const response = NextResponse.next()
+  response.headers.set('x-pathname', nextUrl.pathname)
+  return response
 }
 
 export const config = {

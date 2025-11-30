@@ -2,6 +2,7 @@
 
 import { SolverIntegrationService } from '@/services/solver-integration.service'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { 
   fetchSystemPolicies, 
@@ -11,6 +12,7 @@ import {
   buildWorkingHoursConstraints,
 } from '@/features/engine/mapper'
 import { ShiftType } from '@/types/enums'
+import { getLeaveConstraintsForRoster } from './leave.actions'
 
 /**
  * Server Action to generate a new roster
@@ -83,8 +85,29 @@ export async function generateRosterAction(params: {
       workingHoursConstraints = buildWorkingHoursConstraints(hoursConfig, staff, timeSlots)
     }
 
+    // Fetch leave constraints (FN/ADM/LVE/001)
+    // Leaves are treated as fixed OFF (state=0) point constraints
+    const rosterEndDate = new Date(rosterStartDate.getTime() + timeSlots * 24 * 60 * 60 * 1000)
+    const staffVisibleIds = staff.map(s => s.visibleId)
+    const leaveConstraintsRaw = await getLeaveConstraintsForRoster({
+      startDate: rosterStartDate,
+      endDate: rosterEndDate,
+      staffVisibleIds,
+    })
+    // Convert leave constraints to system constraint format
+    const leaveConstraints = leaveConstraintsRaw.map(c => ({
+      type: c.type,
+      config: {
+        resource: c.resource,
+        time_slot: c.time_slot,
+        state: c.state,
+      },
+      is_required: c.is_required,
+    }))
+    console.log(`[generateRosterAction] Generated ${leaveConstraints.length} leave constraints`)
+
     // Merge all system constraints
-    const allSystemConstraints = [...systemConstraints, ...workingHoursConstraints]
+    const allSystemConstraints = [...systemConstraints, ...workingHoursConstraints, ...leaveConstraints]
 
     // Build resource attributes (FN/ADM/STF/007)
     const resourceAttributes = buildResourceAttributes(staff)
@@ -126,7 +149,42 @@ export async function generateRosterAction(params: {
  * Get roster for a specific month
  * Uses date range overlap logic: roster overlaps month if startDate < monthEnd AND endDate > monthStart
  */
-export async function getRosterAction(params: { month: string }) {
+export type RosterWithRelations = Prisma.RosterGetPayload<{
+  include: {
+    shifts: {
+      include: {
+        staff: {
+          include: {
+            user: { select: { name: true; email: true } }
+          }
+        }
+      }
+    }
+    constraints: true
+  }
+}>
+
+export type GetRosterResponse = 
+  | {
+      success: true
+      roster: RosterWithRelations | null
+      leaves: Array<{
+        id: string
+        staffId: string
+        startDate: Date
+        endDate: Date
+        leaveType: string
+        notes: string | null
+      }>
+    }
+  | {
+      success: false
+      error: string
+      roster: null
+      leaves: []
+    }
+
+export async function getRosterAction(params: { month: string }): Promise<GetRosterResponse> {
   try {
     const monthStart = new Date(params.month + '-01')
     const monthEnd = new Date(monthStart)
@@ -140,7 +198,13 @@ export async function getRosterAction(params: { month: string }) {
       },
       include: {
         shifts: {
-          include: { staff: true },
+          include: { 
+            staff: {
+              include: {
+                user: { select: { name: true, email: true } },
+              },
+            },
+          },
           orderBy: [{ staffId: 'asc' }, { timeSlot: 'asc' }],
         },
         constraints: true,
@@ -148,12 +212,41 @@ export async function getRosterAction(params: { month: string }) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return { success: true as const, roster }
+    // Fetch leaves for the roster period (FN/ADM/LVE/001)
+    let leaves: Array<{
+      id: string
+      staffId: string
+      startDate: Date
+      endDate: Date
+      leaveType: string
+      notes: string | null
+    }> = []
+    
+    if (roster) {
+      leaves = await prisma.leave.findMany({
+        where: {
+          status: 'APPROVED',
+          startDate: { lte: roster.endDate },
+          endDate: { gte: roster.startDate },
+        },
+        select: {
+          id: true,
+          staffId: true,
+          startDate: true,
+          endDate: true,
+          leaveType: true,
+          notes: true,
+        },
+      })
+    }
+
+    return { success: true as const, roster, leaves }
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       roster: null,
+      leaves: [],
     }
   }
 }

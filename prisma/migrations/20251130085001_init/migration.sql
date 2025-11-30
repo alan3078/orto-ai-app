@@ -11,7 +11,13 @@ CREATE TYPE "ShiftType" AS ENUM ('APN', 'SEVEN_E');
 CREATE TYPE "SystemConfigScope" AS ENUM ('GLOBAL', 'ROSTER');
 
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('MANAGER', 'MEMBER');
+CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'ADMIN', 'USER');
+
+-- CreateEnum
+CREATE TYPE "LeaveType" AS ENUM ('SL', 'PH', 'AL', 'UL', 'ML', 'CL');
+
+-- CreateEnum
+CREATE TYPE "LeaveStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateTable
 CREATE TABLE "staff" (
@@ -193,7 +199,7 @@ CREATE TABLE "user" (
     "email" TEXT,
     "password_hash" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "role" "UserRole" NOT NULL DEFAULT 'MEMBER',
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "must_reset_password" BOOLEAN NOT NULL DEFAULT true,
     "tos_accepted_at" TIMESTAMP(3),
@@ -203,6 +209,77 @@ CREATE TABLE "user" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "user_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "permission_module" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "icon" TEXT,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "permission_module_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "permission" (
+    "id" TEXT NOT NULL,
+    "module_id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "action" TEXT NOT NULL,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "permission_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "role_permission" (
+    "id" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL,
+    "permission_id" TEXT NOT NULL,
+    "is_granted" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "role_permission_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "leave" (
+    "id" TEXT NOT NULL,
+    "staff_id" TEXT NOT NULL,
+    "start_date" TIMESTAMP(3) NOT NULL,
+    "end_date" TIMESTAMP(3) NOT NULL,
+    "leave_type" "LeaveType" NOT NULL,
+    "status" "LeaveStatus" NOT NULL DEFAULT 'APPROVED',
+    "notes" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "leave_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public_holiday" (
+    "id" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "name" TEXT NOT NULL,
+    "year" INTEGER NOT NULL,
+    "is_recurring" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "public_holiday_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -319,6 +396,54 @@ CREATE INDEX "user_is_active_idx" ON "user"("is_active");
 CREATE INDEX "user_deleted_at_idx" ON "user"("deleted_at");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "permission_module_code_key" ON "permission_module"("code");
+
+-- CreateIndex
+CREATE INDEX "permission_module_is_active_idx" ON "permission_module"("is_active");
+
+-- CreateIndex
+CREATE INDEX "permission_module_sort_order_idx" ON "permission_module"("sort_order");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "permission_code_key" ON "permission"("code");
+
+-- CreateIndex
+CREATE INDEX "permission_is_active_idx" ON "permission"("is_active");
+
+-- CreateIndex
+CREATE INDEX "permission_action_idx" ON "permission"("action");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "permission_module_id_action_key" ON "permission"("module_id", "action");
+
+-- CreateIndex
+CREATE INDEX "role_permission_role_idx" ON "role_permission"("role");
+
+-- CreateIndex
+CREATE INDEX "role_permission_permission_id_idx" ON "role_permission"("permission_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "role_permission_role_permission_id_key" ON "role_permission"("role", "permission_id");
+
+-- CreateIndex
+CREATE INDEX "leave_staff_id_idx" ON "leave"("staff_id");
+
+-- CreateIndex
+CREATE INDEX "leave_start_date_end_date_idx" ON "leave"("start_date", "end_date");
+
+-- CreateIndex
+CREATE INDEX "leave_leave_type_idx" ON "leave"("leave_type");
+
+-- CreateIndex
+CREATE INDEX "leave_status_idx" ON "leave"("status");
+
+-- CreateIndex
+CREATE INDEX "public_holiday_year_idx" ON "public_holiday"("year");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "public_holiday_date_key" ON "public_holiday"("date");
+
+-- CreateIndex
 CREATE INDEX "_ConstraintToRoster_B_index" ON "_ConstraintToRoster"("B");
 
 -- AddForeignKey
@@ -341,6 +466,15 @@ ALTER TABLE "shift" ADD CONSTRAINT "shift_staff_id_fkey" FOREIGN KEY ("staff_id"
 
 -- AddForeignKey
 ALTER TABLE "system_config_item" ADD CONSTRAINT "system_config_item_group_id_fkey" FOREIGN KEY ("group_id") REFERENCES "system_config_group"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "permission" ADD CONSTRAINT "permission_module_id_fkey" FOREIGN KEY ("module_id") REFERENCES "permission_module"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "role_permission" ADD CONSTRAINT "role_permission_permission_id_fkey" FOREIGN KEY ("permission_id") REFERENCES "permission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "leave" ADD CONSTRAINT "leave_staff_id_fkey" FOREIGN KEY ("staff_id") REFERENCES "staff"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_ConstraintToRoster" ADD CONSTRAINT "_ConstraintToRoster_A_fkey" FOREIGN KEY ("A") REFERENCES "constraint"("id") ON DELETE CASCADE ON UPDATE CASCADE;

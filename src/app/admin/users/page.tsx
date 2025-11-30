@@ -1,19 +1,7 @@
-import { auth } from '@/lib/auth'
-import { redirect } from 'next/navigation'
 import { fetchUsers } from '@/app/actions/user.actions'
 import { UserList } from './user-list'
 
 export default async function UsersPage() {
-  const session = await auth()
-  
-  if (!session?.user) {
-    redirect('/login')
-  }
-
-  if (session.user.role !== 'MANAGER') {
-    redirect('/admin/home')
-  }
-
   const users = await fetchUsers()
 
   return (
