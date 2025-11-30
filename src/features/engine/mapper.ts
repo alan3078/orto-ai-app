@@ -232,7 +232,7 @@ export function buildResourceAttributes(
     gender?: string | null
     staffRoles?: Array<{ role: { name: string; order: number } }>
   }>
-): Record<string, { gender?: string; rolesOrdered?: string[] }> {
+): Record<string, { gender?: string; roles?: string[] }> {
   const attributes: Record<string, any> = {}
 
   for (const staff of staffList) {
@@ -243,8 +243,9 @@ export function buildResourceAttributes(
     }
 
     if (staff.staffRoles && staff.staffRoles.length > 0) {
-      // Already ordered by role.order ASC from query
-      attr.rolesOrdered = staff.staffRoles.map((sr) => sr.role.name)
+      // Use 'roles' to match constraint filter keys (e.g., {"roles": ["IC"], "gender": ["F"]})
+      // Roles are ordered by role.order ASC from query
+      attr.roles = staff.staffRoles.map((sr) => sr.role.name)
     }
 
     // Only include if at least one attribute present

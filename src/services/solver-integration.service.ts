@@ -30,6 +30,7 @@ export class SolverIntegrationService {
    * @param systemConstraints Optional array of system-derived constraints to merge
    * @param resourceAttributes Optional resource attributes map (gender, roles, monthly hours) - FN/ADM/STF/007
    * @param shiftType Shift type configuration: APN or SEVEN_E (7E pattern)
+   * @param previousMonthAssignments Optional previous month assignments for cross-month constraint enforcement
    */
   async generateRoster(
     rosterName: string,
@@ -39,7 +40,8 @@ export class SolverIntegrationService {
     constraintIds: string[],
     systemConstraints: Array<{ type: string; config: Record<string, unknown> }> = [],
     resourceAttributes: Record<string, any> = {},
-    shiftType: ShiftType = ShiftType.APN
+    shiftType: ShiftType = ShiftType.APN,
+    previousMonthAssignments: Array<{ resource: string; offset_days: number; state: number }> = []
   ): Promise<{ rosterId: string; status: string }> {
     // Step 1: Fetch staff and constraints from database
     console.log(`[SolverIntegration] Received ${staffIds.length} staffIds to process`)
@@ -95,7 +97,7 @@ export class SolverIntegrationService {
 
     try {
       // Step 3: Transform data for Python API
-      const solverRequest = this.buildSolverRequest(staff, constraints, timeSlots, systemConstraints, resourceAttributes, states)
+      const solverRequest = this.buildSolverRequest(staff, constraints, timeSlots, systemConstraints, resourceAttributes, states, previousMonthAssignments)
 
       // Step 4: Call Python solver
       const solverResponse = await this.callSolverApi(solverRequest)
@@ -130,7 +132,8 @@ export class SolverIntegrationService {
     timeSlots: number,
     systemConstraints: Array<{ type: string; config: Record<string, unknown>; isRequired?: boolean }> = [],
     resourceAttributes: Record<string, any> = {},
-    states: number[] = [0, 1, 2]
+    states: number[] = [0, 1, 2],
+    previousMonthAssignments: Array<{ resource: string; offset_days: number; state: number }> = []
   ) {
     // Map database constraint config to solver format
     const solverConstraints: SolverConstraint[] = constraints.map((c) => {
@@ -320,6 +323,12 @@ export class SolverIntegrationService {
     if (Object.keys(resourceAttributes).length > 0) {
       payload.resource_attributes = resourceAttributes
       console.log(`[SolverIntegration] Including resource_attributes for ${Object.keys(resourceAttributes).length} resources`)
+    }
+
+    // Include previous month assignments if present (FN/ADM/RST/002)
+    if (previousMonthAssignments.length > 0) {
+      payload.previous_month_assignments = previousMonthAssignments
+      console.log(`[SolverIntegration] Including ${previousMonthAssignments.length} previous month assignments for cross-month constraints`)
     }
 
     // Validate before sending

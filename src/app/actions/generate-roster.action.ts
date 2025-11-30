@@ -54,6 +54,61 @@ export async function generateRosterAction(params: {
       console.log(`[generateRosterAction] Deleted ${existingRosters.length} existing roster(s) for month ${monthStart.toISOString().slice(0, 7)}`)
     }
 
+    // FN/ADM/RST/002 - Fetch previous month assignments for cross-month constraint enforcement
+    // Get the previous month's date range
+    const previousMonthEnd = monthStart // End of prev month = start of current month
+    const previousMonthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1)
+    
+    // Fetch previous month's roster
+    const previousRoster = await prisma.roster.findFirst({
+      where: {
+        startDate: { lt: previousMonthEnd },
+        endDate: { gt: previousMonthStart },
+        status: 'COMPLETED',
+        shiftType: shiftType, // Must match shift type
+      },
+      include: {
+        shifts: {
+          include: {
+            staff: {
+              select: { visibleId: true }
+            }
+          },
+          orderBy: { timeSlot: 'desc' },
+        }
+      }
+    })
+    
+    // Build previous month assignments (last 7 days for pattern checking)
+    const OVERLAP_DAYS = 7
+    const previousMonthAssignments: Array<{ resource: string; offset_days: number; state: number }> = []
+    
+    if (previousRoster) {
+      const prevMonthDays = previousRoster.timeSlots || 30
+      // Get shifts from last OVERLAP_DAYS of previous month
+      const startSlot = Math.max(0, prevMonthDays - OVERLAP_DAYS)
+      
+      previousRoster.shifts
+        .filter(shift => shift.timeSlot >= startSlot)
+        .forEach(shift => {
+          // offset_days: 1 = last day of prev month, 2 = second-to-last, etc.
+          // timeSlot is 0-indexed, so last day is (prevMonthDays - 1)
+          // offset = prevMonthDays - 1 - timeSlot + 1 = prevMonthDays - timeSlot
+          const offset = prevMonthDays - shift.timeSlot
+          if (offset >= 1 && offset <= OVERLAP_DAYS) {
+            previousMonthAssignments.push({
+              resource: shift.staff.visibleId,
+              offset_days: offset,
+              state: shift.state,
+            })
+          }
+        })
+      
+      console.log(`[generateRosterAction] Found ${previousMonthAssignments.length} previous month assignments from ${previousRoster.name}`)
+    } else {
+      console.log(`[generateRosterAction] No previous month roster found for cross-month constraints`)
+    }
+
     // Fetch system policies and build system constraints
     const systemPolicies = await fetchSystemPolicies({
       includeGlobal: true,
@@ -122,7 +177,8 @@ export async function generateRosterAction(params: {
       constraintIds,
       allSystemConstraints,
       resourceAttributes,
-      shiftType
+      shiftType,
+      previousMonthAssignments
     )
 
     revalidatePath('/roster-management')
@@ -186,15 +242,30 @@ export type GetRosterResponse =
 
 export async function getRosterAction(params: { month: string }): Promise<GetRosterResponse> {
   try {
-    const monthStart = new Date(params.month + '-01')
-    const monthEnd = new Date(monthStart)
-    monthEnd.setMonth(monthEnd.getMonth() + 1)
+    // Parse month string "2025-10" to get year and month
+    const [year, monthNum] = params.month.split('-').map(Number)
+    
+    // Get full month name (e.g., "October")
+    const monthName = new Date(year, monthNum - 1, 15).toLocaleString('en-US', { month: 'long' })
+    const expectedRosterName = `${monthName} ${year}` // e.g., "October 2025"
+    
+    // Create date range for precise matching as fallback
+    const monthStart = new Date(Date.UTC(year, monthNum - 1, 1))
 
+    // Find roster by name (most reliable) or by startDate range
     const roster = await prisma.roster.findFirst({
       where: {
-        // Date range overlap: roster overlaps month if startDate < monthEnd AND endDate > monthStart
-        startDate: { lt: monthEnd },
-        endDate: { gt: monthStart },
+        OR: [
+          // Match by roster name containing "October 2025" etc.
+          { name: { contains: expectedRosterName } },
+          // Fallback: startDate is within first week of month (handles timezone)
+          {
+            AND: [
+              { startDate: { gte: new Date(monthStart.getTime() - 2 * 24 * 60 * 60 * 1000) } }, // 2 days before
+              { startDate: { lt: new Date(monthStart.getTime() + 5 * 24 * 60 * 60 * 1000) } },  // 5 days after
+            ]
+          }
+        ]
       },
       include: {
         shifts: {

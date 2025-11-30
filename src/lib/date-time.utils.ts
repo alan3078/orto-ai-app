@@ -50,14 +50,28 @@ export function formatMonthISO(date: Date): string {
  */
 export function formatMonthDisplay(date: Date | string): string {
   const d = typeof date === 'string' ? parseMonthISO(date) : date
+  if (!isValid(d)) {
+    return 'Invalid Date'
+  }
   return format(d, FORMAT_MONTH_DISPLAY)
 }
 
 /**
  * Parse a month ISO string (yyyy-MM) to a Date (first day of month)
+ * Returns current month if the string is invalid
  */
 export function parseMonthISO(monthStr: string): Date {
-  return new Date(monthStr + '-01')
+  // Guard against undefined, null, or invalid strings
+  if (!monthStr || typeof monthStr !== 'string' || !/^\d{4}-\d{2}$/.test(monthStr)) {
+    console.warn(`parseMonthISO: Invalid month string "${monthStr}", using current month`)
+    return startOfMonth(new Date())
+  }
+  const parsed = new Date(monthStr + '-01')
+  if (!isValid(parsed)) {
+    console.warn(`parseMonthISO: Failed to parse "${monthStr}", using current month`)
+    return startOfMonth(new Date())
+  }
+  return parsed
 }
 
 /**
@@ -89,18 +103,33 @@ export function getDaysInMonthFromISO(monthStr: string): number {
 }
 
 /**
- * Generate list of previous months for selectors
- * @param count Number of months to generate (default: 3)
- * @returns Array of { value: 'yyyy-MM', label: 'MMMM yyyy' }
+ * Generate list of months for roster selector
+ * Includes 1 month ahead and previous months up to count total
+ * @param count Number of months to generate (default: 4, including next month)
+ * @returns Array of { value: 'yyyy-MM', label: 'MMMM yyyy' } sorted chronologically (oldest first)
  */
-export function getPreviousMonths(count: number = 3): Array<{ value: string; label: string }> {
-  return Array.from({ length: count }, (_, i) => {
-    const date = subMonths(new Date(), i)
-    return {
+export function getPreviousMonths(count: number = 4): Array<{ value: string; label: string }> {
+  const now = new Date()
+  const months: Array<{ value: string; label: string }> = []
+  
+  // Include 1 month ahead
+  const nextMonth = addMonths(now, 1)
+  months.push({
+    value: formatMonthISO(nextMonth),
+    label: formatMonthDisplay(nextMonth),
+  })
+  
+  // Current month and previous months
+  for (let i = 0; i < count - 1; i++) {
+    const date = subMonths(now, i)
+    months.push({
       value: formatMonthISO(date),
       label: formatMonthDisplay(date),
-    }
-  })
+    })
+  }
+  
+  // Sort chronologically (oldest first for natural reading)
+  return months.sort((a, b) => a.value.localeCompare(b.value))
 }
 
 // ============================================================================

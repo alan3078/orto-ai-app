@@ -57,8 +57,8 @@ export function RosterControls({
     console.log('[RosterControls] Staff sample:', staff.slice(0, 3).map((s: any) => ({ id: s.id, name: s.name, staffGroupId: s.staffGroupId })));
   }
 
-  // Generate list of last 3 months for selector
-  const months = getPreviousMonths(3);
+  // Generate list of months for selector (1 ahead + 3 behind = 4 months total)
+  const months = getPreviousMonths(4);
 
   const handleGenerate = async () => {
     if (!filteredStaff || filteredStaff.length === 0) {
