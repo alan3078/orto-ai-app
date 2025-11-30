@@ -108,5 +108,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  trustHost: true,
 })
