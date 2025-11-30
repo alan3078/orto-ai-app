@@ -11,8 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useSession } from 'next-auth/react'
-import { logoutAction } from '@/app/actions/auth.actions'
+import { useSession, signOut } from 'next-auth/react'
 
 export function Header() {
   const { data: session } = useSession()
@@ -58,12 +57,14 @@ export function Header() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <form action={logoutAction} className="w-full">
-              <button type="submit" className="flex w-full items-center gap-2 cursor-pointer text-red-600">
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </button>
-            </form>
+            <button 
+              type="button" 
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="flex w-full items-center gap-2 cursor-pointer text-red-600"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
