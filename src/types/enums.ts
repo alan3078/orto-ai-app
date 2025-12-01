@@ -49,4 +49,37 @@ export enum ConstraintType {
   RESOURCE_STATE_COUNT = 'resource_state_count',
   /** Filtered vertical sum by multiple attributes with AND logic (e.g., gender=F AND role=IC) */
   COMPOUND_ATTRIBUTE_VERTICAL_SUM = 'compound_attribute_vertical_sum',
+  /** Minimum consecutive occurrences of a state (no isolated singles) */
+  MIN_CONSECUTIVE = 'min_consecutive',
+  /** Minimum gap between night shift blocks (e.g., 7 days between blocks) */
+  NIGHT_BLOCK_GAP = 'night_block_gap',
+  /** Dynamic post-block rest: enforce rest days after any block ends */
+  POST_BLOCK_REST = 'post_block_rest',
+}
+
+/**
+ * Solver response status
+ */
+export enum SolverStatus {
+  OPTIMAL = 'OPTIMAL',
+  FEASIBLE = 'FEASIBLE',
+  INFEASIBLE = 'INFEASIBLE',
+  ERROR = 'ERROR',
+}
+
+/**
+ * Validation result status
+ */
+export enum ValidationStatus {
+  PASS = 'PASS',
+  FAIL = 'FAIL',
+}
+
+/**
+ * Comparison operators for constraints
+ */
+export enum ComparisonOperator {
+  GTE = '>=',
+  LTE = '<=',
+  EQ = '==',
 }

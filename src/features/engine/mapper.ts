@@ -196,17 +196,19 @@ export function buildWorkingHoursConstraints(
 /**
  * Build system constraints from policies + staff list.
  * @param availableStates - Array of available states in the roster config (e.g., [0, 1] or [0, 1, 2])
+ * @param timeSlots - Number of time slots (days) in the roster period for dynamic constraint generation
  */
 export async function buildSystemConstraints(
   policies: SystemPolicy[],
   staffList: Array<{ visibleId: string }>,
-  availableStates: number[] = [0, 1]
+  availableStates: number[] = [0, 1],
+  timeSlots: number = 30
 ): Promise<SystemConstraint[]> {
   const constraints: SystemConstraint[] = []
 
   for (const policy of policies) {
     try {
-      const derived = deriveConstraint(policy, staffList, availableStates)
+      const derived = deriveConstraint(policy, staffList, availableStates, timeSlots)
       if (derived) {
         if (Array.isArray(derived)) {
           constraints.push(...derived)
@@ -233,10 +235,10 @@ export function buildResourceAttributes(
     staffRoles?: Array<{ role: { name: string; order: number } }>
   }>
 ): Record<string, { gender?: string; roles?: string[] }> {
-  const attributes: Record<string, any> = {}
+  const attributes: Record<string, { gender?: string; roles?: string[] }> = {}
 
   for (const staff of staffList) {
-    const attr: any = {}
+    const attr: { gender?: string; roles?: string[] } = {}
 
     if (staff.gender) {
       attr.gender = staff.gender
@@ -259,11 +261,13 @@ export function buildResourceAttributes(
 
 /**
  * Derive constraint object(s) from a single policy.
+ * @param timeSlots - Number of time slots (days) in the roster period for dynamic constraint generation
  */
 function deriveConstraint(
   policy: SystemPolicy,
   staffList: Array<{ visibleId: string }>,
-  availableStates: number[]
+  availableStates: number[],
+  timeSlots: number = 30
 ): SystemConstraint | SystemConstraint[] | null {
   const { type, key, label, value, priority } = policy
 
@@ -276,11 +280,11 @@ function deriveConstraint(
 
   switch (type) {
     case 'nurse_safety':
-      return deriveNurseSafety(key, label, val, priority, staffList, availableStates)
+      return deriveNurseSafety(key, label, val, priority, staffList, availableStates, timeSlots)
     case 'coverage':
       return deriveCoverage(key, label, val, priority)
     case 'fairness':
-      return deriveFairness(key, label, val, priority, staffList, availableStates)
+      return deriveFairness(key, label, val, priority, staffList, availableStates, timeSlots)
     default:
       return null
   }
@@ -288,6 +292,7 @@ function deriveConstraint(
 
 /**
  * Nurse safety rules (max consecutive nights, night-to-day block, post-night rest).
+ * @param rosterTimeSlots - Number of time slots (days) in the roster period for dynamic constraint generation
  */
 function deriveNurseSafety(
   key: string,
@@ -295,7 +300,8 @@ function deriveNurseSafety(
   value: Record<string, unknown>,
   priority: number,
   staffList: Array<{ visibleId: string }>,
-  availableStates: number[]
+  availableStates: number[],
+  rosterTimeSlots: number = 30
 ): SystemConstraint | SystemConstraint[] | null {
   if (key === 'max_consecutive_nights') {
     // Horizontal sum per staff
@@ -311,7 +317,8 @@ function deriveNurseSafety(
     // Night is ALWAYS the max state: APN=3 (N), 7E=2 (E)
     const nightState = Math.max(...availableStates)
 
-    // Build the time slot horizon to inspect for consecutive nights
+    // Build the time slot horizon dynamically based on roster period
+    // Use roster's actual timeSlots instead of hardcoded 30
     let timeSlots: number[] | null = null
     if (Array.isArray((value as any).time_slots)) {
       const arr = (value as any).time_slots
@@ -321,8 +328,8 @@ function deriveNurseSafety(
     }
 
     if (!timeSlots) {
-      const horizon = typeof (value as any).time_slot_count === 'number' ? (value as any).time_slot_count : 30
-      timeSlots = Array.from({ length: Math.max(1, horizon) }, (_, i) => i)
+      // Use roster's actual timeSlots instead of hardcoded value
+      timeSlots = Array.from({ length: rosterTimeSlots }, (_, i) => i)
     }
 
     // Generate one constraint per staff
@@ -369,26 +376,113 @@ function deriveNurseSafety(
   }
 
   if (key === 'post_night_rest') {
-    // Rule #7: After a night block, require rest days
+    // Rule #7c: After any night block ends, require rest days (OFF) before any work
+    // Uses dynamic block detection - triggers on any block end regardless of length
     const enabled = value.enabled
     if (enabled !== true) return null
 
-    const workDays = typeof value.work_days === 'number' ? value.work_days : 3
     const restDays = typeof value.rest_days === 'number' ? value.rest_days : 2
     // Night is ALWAYS the max state: APN=3 (N), 7E=2 (E)
     // Ignore seed target_state since it may not match current shift type
     const nightState = Math.max(...availableStates)
 
-    // Generate sliding_window constraint per staff
+    // Generate post_block_rest constraint per staff (dynamic block detection)
     const constraints: SystemConstraint[] = staffList.map((staff) => ({
       name: `${label} (${staff.visibleId})`,
-      type: 'sliding_window',
+      type: 'post_block_rest',
       config: {
-        type: 'sliding_window',
+        type: 'post_block_rest',
         resource: staff.visibleId,
-        work_days: workDays,
         rest_days: restDays,
         target_state: nightState!,
+      },
+      priority,
+      source: 'system',
+    }))
+
+    return constraints
+  }
+
+  if (key === 'min_consecutive_nights') {
+    // Rule #7b: Minimum consecutive nights per block (no isolated single nights)
+    // Uses same 'limit' key as max_consecutive_nights for consistency
+    const limit = typeof value.limit === 'number' ? value.limit : 2
+    if (limit < 2) return null // limit of 1 is meaningless
+
+    if (availableStates.length === 0) return null
+
+    // Night is ALWAYS the max state: APN=3 (N), 7E=2 (E)
+    const nightState = Math.max(...availableStates)
+
+    // Build the time slot horizon dynamically based on roster period
+    let timeSlots: number[] | null = null
+    if (Array.isArray((value as any).time_slots)) {
+      const arr = (value as any).time_slots
+      if (arr.every((t: unknown) => typeof t === 'number')) {
+        timeSlots = arr as number[]
+      }
+    }
+    if (!timeSlots) {
+      // Use roster's actual timeSlots instead of hardcoded value
+      timeSlots = Array.from({ length: rosterTimeSlots }, (_, i) => i)
+    }
+
+    // Generate min_consecutive_nights constraint per staff
+    // This uses a custom constraint type that the solver must handle
+    const constraints: SystemConstraint[] = staffList.map((staff) => ({
+      name: `${label} (${staff.visibleId})`,
+      type: 'min_consecutive',
+      config: {
+        type: 'min_consecutive',
+        resource: staff.visibleId,
+        time_slots: timeSlots,
+        target_state: nightState!,
+        min_block: limit,  // Solver expects min_block
+      },
+      priority,
+      source: 'system',
+    }))
+
+    return constraints
+  }
+
+  if (key === 'night_block_gap') {
+    // Rule #7d: Minimum days between night blocks (1 week = 7 days)
+    const enabled = value.enabled
+    if (enabled !== true) return null
+
+    const minGapDays = typeof value.min_gap_days === 'number' ? value.min_gap_days : 7
+    if (minGapDays < 1) return null
+
+    if (availableStates.length === 0) return null
+
+    // Night is ALWAYS the max state: APN=3 (N), 7E=2 (E)
+    const nightState = Math.max(...availableStates)
+
+    // Build the time slot horizon dynamically based on roster period
+    let timeSlots: number[] | null = null
+    if (Array.isArray((value as any).time_slots)) {
+      const arr = (value as any).time_slots
+      if (arr.every((t: unknown) => typeof t === 'number')) {
+        timeSlots = arr as number[]
+      }
+    }
+    if (!timeSlots) {
+      // Use roster's actual timeSlots instead of hardcoded value
+      timeSlots = Array.from({ length: rosterTimeSlots }, (_, i) => i)
+    }
+
+    // Generate night_block_gap constraint per staff
+    // This uses a custom constraint type that the solver must handle
+    const constraints: SystemConstraint[] = staffList.map((staff) => ({
+      name: `${label} (${staff.visibleId})`,
+      type: 'night_block_gap',
+      config: {
+        type: 'night_block_gap',
+        resource: staff.visibleId,
+        time_slots: timeSlots,
+        target_state: nightState!,
+        min_gap_days: minGapDays,
       },
       priority,
       source: 'system',
@@ -437,6 +531,7 @@ function deriveCoverage(
 
 /**
  * Fairness rules (night distribution, total shift cap).
+ * @param rosterTimeSlots - Number of time slots (days) in the roster period for dynamic constraint generation
  */
 function deriveFairness(
   key: string,
@@ -444,7 +539,8 @@ function deriveFairness(
   value: Record<string, unknown>,
   priority: number,
   staffList: Array<{ visibleId: string }>,
-  availableStates: number[]
+  availableStates: number[],
+  rosterTimeSlots: number = 30
 ): SystemConstraint | SystemConstraint[] | null {
   if (key === 'night_distribution') {
     // Rule #5: Each person should work 4-6 night shifts over the month
@@ -457,8 +553,8 @@ function deriveFairness(
     // Ignore seed target_state since it may not match current shift type
     const nightState = Math.max(...availableStates)
 
-    // Get time slots from config or default to 30 days
-    let timeSlots: number[] = Array.from({ length: 30 }, (_, i) => i)
+    // Get time slots from config or use roster's actual timeSlots
+    let timeSlots: number[] = Array.from({ length: rosterTimeSlots }, (_, i) => i)
     if (Array.isArray(value.time_slots)) {
       timeSlots = value.time_slots as number[]
     }

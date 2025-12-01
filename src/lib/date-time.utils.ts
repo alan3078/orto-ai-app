@@ -59,6 +59,10 @@ export function formatMonthDisplay(date: Date | string): string {
 /**
  * Parse a month ISO string (yyyy-MM) to a Date (first day of month)
  * Returns current month if the string is invalid
+ * 
+ * IMPORTANT: Creates date in LOCAL timezone to avoid day shift issues.
+ * When using new Date('2025-11-01'), JS interprets it as UTC midnight,
+ * which can shift to previous day in timezones ahead of UTC.
  */
 export function parseMonthISO(monthStr: string): Date {
   // Guard against undefined, null, or invalid strings
@@ -66,7 +70,11 @@ export function parseMonthISO(monthStr: string): Date {
     console.warn(`parseMonthISO: Invalid month string "${monthStr}", using current month`)
     return startOfMonth(new Date())
   }
-  const parsed = new Date(monthStr + '-01')
+  
+  // Parse year and month manually to create date in LOCAL timezone
+  const [year, month] = monthStr.split('-').map(Number)
+  const parsed = new Date(year, month - 1, 1) // month is 0-indexed
+  
   if (!isValid(parsed)) {
     console.warn(`parseMonthISO: Failed to parse "${monthStr}", using current month`)
     return startOfMonth(new Date())
@@ -83,6 +91,7 @@ export function getCurrentMonthISO(): string {
 
 /**
  * Get start of month from a month ISO string
+ * Returns first day of month at midnight in LOCAL timezone
  */
 export function getMonthStart(monthStr: string): Date {
   return startOfMonth(parseMonthISO(monthStr))
@@ -201,4 +210,32 @@ export function generateRosterName(startDate: Date): string {
  */
 export function getTimeSlotDates(startDate: Date, timeSlots: number): Date[] {
   return Array.from({ length: timeSlots }, (_, i) => addDays(startDate, i))
+}
+
+/**
+ * Create a date at noon (12:00) in LOCAL timezone to avoid UTC conversion issues.
+ * When a date is stored/transmitted as ISO string, midnight dates can shift
+ * back a day in timezones ahead of UTC. Using noon provides a safe buffer.
+ * 
+ * @param year Full year (e.g., 2025)
+ * @param month Month (1-12, NOT 0-indexed)
+ * @param day Day of month (1-31)
+ * @returns Date object at noon in local timezone
+ */
+export function createNoonDate(year: number, month: number, day: number): Date {
+  return new Date(year, month - 1, day, 12, 0, 0, 0)
+}
+
+/**
+ * Get start of month at noon (12:00) from a month ISO string.
+ * This avoids timezone shift issues when dates cross UTC midnight boundary.
+ * 
+ * @param monthStr Month string in format "yyyy-MM"
+ * @returns Date at noon on the first day of the month
+ */
+export function getMonthStartNoon(monthStr: string): Date {
+  const date = parseMonthISO(monthStr)
+  // Set to noon to avoid timezone issues
+  date.setHours(12, 0, 0, 0)
+  return date
 }

@@ -14,7 +14,7 @@ import { useConstraints } from '../hooks/use-constraints';
 import { useGenerateRoster, useRoster } from '../hooks/use-roster';
 import {
   formatMonthDisplay,
-  getMonthStart,
+  getMonthStartNoon,
   getDaysInMonthFromISO,
   getPreviousMonths,
   generateRosterName,
@@ -22,6 +22,8 @@ import {
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { ShiftType } from '@/types/enums';
+import type { Staff } from '@/types/staff';
+import type { Constraint } from '@/types/roster';
 
 interface RosterControlsProps {
   selectedMonth: string;
@@ -44,18 +46,10 @@ export function RosterControls({
   const { data: roster } = useRoster({ month: selectedMonth });
 
   // Filter staff by selected staff group
-  const filteredStaff = staff?.filter((s: any) => {
+  const filteredStaff = staff?.filter((s: Staff) => {
     if (!selectedStaffGroupId) return true; // No filter, include all staff
     return s.staffGroupId === selectedStaffGroupId;
   });
-
-  // Debug logging
-  console.log('[RosterControls] Total staff from useStaff:', staff?.length);
-  console.log('[RosterControls] selectedStaffGroupId:', selectedStaffGroupId);
-  console.log('[RosterControls] Filtered staff count:', filteredStaff?.length);
-  if (staff?.length && staff.length > 0) {
-    console.log('[RosterControls] Staff sample:', staff.slice(0, 3).map((s: any) => ({ id: s.id, name: s.name, staffGroupId: s.staffGroupId })));
-  }
 
   // Generate list of months for selector (1 ahead + 3 behind = 4 months total)
   const months = getPreviousMonths(4);
@@ -70,7 +64,8 @@ export function RosterControls({
       return;
     }
 
-    const startDate = getMonthStart(selectedMonth);
+    // Use noon date to avoid timezone shift issues when ISO string crosses UTC midnight
+    const startDate = getMonthStartNoon(selectedMonth);
     const timeSlots = getDaysInMonthFromISO(selectedMonth);
 
     try {
@@ -78,8 +73,8 @@ export function RosterControls({
         name: generateRosterName(startDate),
         startDate: startDate.toISOString(),
         timeSlots,
-        staffIds: filteredStaff.map((s: any) => s.id),
-        constraintIds: (constraints || []).filter((c: any) => c.isActive).map((c: any) => c.id),
+        staffIds: filteredStaff.map((s: Staff) => s.id),
+        constraintIds: (constraints || []).filter((c: Constraint) => c.isActive).map((c: Constraint) => c.id),
         shiftType,
       });
     } catch (error) {

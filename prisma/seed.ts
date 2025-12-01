@@ -379,28 +379,27 @@ async function main() {
   console.log('✅ Created 5 shift definitions (7, E for 7E; A, P, N for APN)')
 
   // Create Staff for Demo Hospital Nursing Unit
-  // 15 nurses with various ranks and roles
+  // 14 nurses with various ranks and roles
   // IC role: First 9 staff (3 Male, 6 Female)
-  // Non-IC role: Remaining 6 staff (all Female)
+  // Non-IC role: Remaining 5 staff (all Female)
   // Each staff member gets a User account (1:1 relationship)
   const staffData = [
     // IC Role Staff (Senior nurses with IC certification)
-    { visibleId: 'NUR001', username: 'david.chen', name: 'David Chen', email: 'david.chen@orto.ai', rank: 'SNO', gender: 'M' as const },
-    { visibleId: 'NUR002', username: 'michael.lee', name: 'Michael Lee', email: 'michael.lee@orto.ai', rank: 'SRN', gender: 'M' as const },
-    { visibleId: 'NUR003', username: 'kevin.lam', name: 'Kevin Lam', email: 'kevin.lam@orto.ai', rank: 'SRN', gender: 'M' as const },
-    { visibleId: 'NUR004', username: 'sarah.wong', name: 'Sarah Wong', email: 'sarah.wong@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR001', username: 'michael.wong', name: 'Michael Wong', email: 'michael.wong@orto.ai', rank: 'SNO', gender: 'M' as const },
+    { visibleId: 'NUR002', username: 'grace.chen', name: 'Grace Chen', email: 'grace.chen@orto.ai', rank: 'SRN', gender: 'F' as const },
+    { visibleId: 'NUR003', username: 'dorothy.lee', name: 'Dorothy Lee', email: 'dorothy.lee@orto.ai', rank: 'SRN', gender: 'F' as const },
+    { visibleId: 'NUR004', username: 'alan.lam', name: 'Alan Lam', email: 'alan.lam@orto.ai', rank: 'RN', gender: 'M' as const },
     { visibleId: 'NUR005', username: 'emily.tan', name: 'Emily Tan', email: 'emily.tan@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR006', username: 'grace.liu', name: 'Grace Liu', email: 'grace.liu@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR007', username: 'rachel.cheung', name: 'Rachel Cheung', email: 'rachel.cheung@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR008', username: 'karen.yip', name: 'Karen Yip', email: 'karen.yip@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR009', username: 'michelle.hui', name: 'Michelle Hui', email: 'michelle.hui@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR006', username: 'john.liu', name: 'John Liu', email: 'john.liu@orto.ai', rank: 'RN', gender: 'M' as const },
+    { visibleId: 'NUR007', username: 'polly.cheung', name: 'Polly Cheung', email: 'polly.cheung@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR008', username: 'pinky.yip', name: 'Pinky Yip', email: 'pinky.yip@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR009', username: 'macy.hui', name: 'Macy Hui', email: 'macy.hui@orto.ai', rank: 'RN', gender: 'F' as const },
     // Non-IC Role Staff (Junior nurses)
-    { visibleId: 'NUR010', username: 'amy.fung', name: 'Amy Fung', email: 'amy.fung@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR011', username: 'linda.chow', name: 'Linda Chow', email: 'linda.chow@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR012', username: 'nancy.ho', name: 'Nancy Ho', email: 'nancy.ho@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR013', username: 'wendy.lau', name: 'Wendy Lau', email: 'wendy.lau@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR014', username: 'jenny.ma', name: 'Jenny Ma', email: 'jenny.ma@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR015', username: 'teresa.kwok', name: 'Teresa Kwok', email: 'teresa.kwok@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR010', username: 'joey.fung', name: 'Joey Fung', email: 'joey.fung@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR011', username: 'amy.chow', name: 'Amy Chow', email: 'amy.chow@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR012', username: 'sammi.ho', name: 'Sammi Ho', email: 'sammi.ho@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR013', username: 'janice.lau', name: 'Janice Lau', email: 'janice.lau@orto.ai', rank: 'RN', gender: 'F' as const },
+    { visibleId: 'NUR014', username: 'tracy.ma', name: 'Tracy Ma', email: 'tracy.ma@orto.ai', rank: 'RN', gender: 'F' as const },
   ]
 
   const users = await Promise.all(
@@ -429,12 +428,12 @@ async function main() {
   }
   console.log('✅ Assigned all staff to Ward A Nursing Team')
 
-  // Assign roles: First 9 are IC, remaining 6 are Non-IC
+  // Assign roles: First 9 are IC, remaining 5 are Non-IC
   const staffRoleData: { staffId: string; roleId: string }[] = []
   staff.slice(0, 9).forEach(s => staffRoleData.push({ staffId: s.id, roleId: roleIC.id }))
   staff.slice(9).forEach(s => staffRoleData.push({ staffId: s.id, roleId: roleNonIC.id }))
   await prisma.staffRole.createMany({ data: staffRoleData })
-  console.log('✅ Assigned IC role to first 9 staff, Non-IC role to remaining 6')
+  console.log('✅ Assigned IC role to first 9 staff, Non-IC role to remaining 5')
 
   // Advanced constraints for APN shift type
   // APN States: 0=Off, 1=Afternoon, 2=PM, 3=Night
@@ -658,15 +657,19 @@ async function main() {
   console.log(`✅ Created ${constraints.length} constraints (APN + 7E modes)`)
 
   // --------------------------------------------------------------------------
-  // REQUIREMENTS FULFILLMENT SUMMARY:
+  // REQUIREMENTS FULFILLMENT SUMMARY (Beta Release):
   // --------------------------------------------------------------------------
   // 1. ✅ Two duty types: 7/E (12h) and A/P/N (8.5h) - via ShiftTypeConfig + ShiftDefinition
   // 2. ✅ Individual working hours: via ShiftTypeConfig minHoursPerMonth/maxHoursPerMonth (160-190h)
   // 3. ✅ Target manpower per shift: via vertical_sum constraints (4D2E for 7E, 4A4P2N for APN)
-  // 4. ✅ Balance E/N shifts: via night_distribution system config (3-7 per person)
+  // 4. ✅ Balance E/N shifts: via night_distribution system config (4-6 per person)
   // 5. ✅ IC role in every shift: via attribute_vertical_sum constraints (IC Coverage)
   // 6. ✅ Avoid male-only shift: via attribute_vertical_sum constraints (Female Coverage)
-  // 7. ✅ Shift blocks: via max_consecutive_nights (limit 3) + post_night_rest (2 days off)
+  // 7. ✅ Shift blocks (Requirement #7 has 4 parts):
+  //    a. ✅ max_consecutive_nights = 3 (EEE max, no EEEE)
+  //    b. ✅ min_consecutive_nights = 2 (no isolated E, must be EE or EEE)
+  //    c. ✅ post_night_rest = 2 days off after night block (EE→OO→7 allowed)
+  //    d. ✅ night_block_gap = 7 days between night blocks (1 week separation)
   // 8. ✅ Dayoff after E/N: via post_night_rest + pattern_block constraints
   // 9. 🚧 Balance dayoff monthly: TODO - add dayoff distribution constraint
   // --------------------------------------------------------------------------
@@ -747,8 +750,11 @@ async function main() {
   }
 
   // Seed GLOBAL items (locked)
+  
+  // Rule #7a: Max consecutive night shifts = 3
+  // Business rule: No more than 3 consecutive night shifts (EEE max)
   await upsertItem(coreGlobal.id, 'max_consecutive_nights', {
-    label: 'Max Consecutive Night Shifts',
+    label: 'Max Consecutive Night Shifts (3)',
     type: 'nurse_safety',
     value: {
       limit: 3,
@@ -757,6 +763,20 @@ async function main() {
     },
     locked: true,
   })
+
+  // Rule #7b: Min consecutive night shifts = 2
+  // Business rule: No isolated single night shifts (E alone not allowed, must be EE or EEE)
+  await upsertItem(coreGlobal.id, 'min_consecutive_nights', {
+    label: 'Min Consecutive Night Shifts (2)',
+    type: 'nurse_safety',
+    value: {
+      limit: 2,         // Minimum 2 consecutive nights per block (same key as max for consistency)
+      target_state: 2,  // 7E night state (E=2); mapper will use max state dynamically
+      time_slots: Array.from({ length: 30 }, (_, i) => i),
+    },
+    locked: true,
+  })
+
   await upsertItem(coreGlobal.id, 'night_to_day_block', {
     label: 'Block Night→Day Immediate Transition',
     type: 'nurse_safety',
@@ -764,33 +784,49 @@ async function main() {
     locked: true,
   })
 
-  // Rule #7: Post-night rest - 2 days off after ANY night shift
-  // Business rule: After finishing a night shift, must have at least 2 full days off
+  // Rule #7c: Post-night rest - 2 days off after night block before any shift
+  // Business rule: After finishing a night block (of any length), must have at least 2 full days off
   // before returning to any shift (day or night)
+  // Pattern: EE → O O → 7 (allowed) or EEE → O O → 7 (allowed)
+  // Uses dynamic block detection - triggers on ANY block end regardless of length
   await upsertItem(coreGlobal.id, 'post_night_rest', {
-    label: 'Post-Night Rest (2 Days Off After Night Shift)',
+    label: 'Post-Night Rest (2 Days Off After Night Block)',
     type: 'nurse_safety',
     value: {
       enabled: true,
-      work_days: 1,     // After 1 night shift...
-      rest_days: 2,     // ...require 2 days rest before next work
+      rest_days: 2,     // Require 2 days rest after any night block ends
       target_state: 2,  // 7E night state (E=2); will fallback for APN
+    },
+    locked: true,
+  })
+
+  // Rule #7d: Night block gap - 1 week (7 days) between night blocks
+  // Business rule: After a night block ends, at least 7 days before starting another night block
+  // Pattern: EE → (at least 7 non-E days) → EEE (allowed)
+  // This prevents: EE → O O → EEE (only 2 day gap - NOT allowed)
+  await upsertItem(coreGlobal.id, 'night_block_gap', {
+    label: 'Night Block Gap (1 Week Between Blocks)',
+    type: 'nurse_safety',
+    value: {
+      enabled: true,
+      min_gap_days: 7,  // Minimum 7 days between night blocks
+      target_state: 2,  // 7E night state (E=2); mapper will use max state dynamically
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },
     locked: true,
   })
 
-  // Rule #5: Night shift distribution - 2 to 8 nights per person per month
-  // With 15 staff, 2 per night × 30 days = 60 nights total / 15 = 4 avg
-  // Allow range 2-8 for flexibility with coverage constraints and post-night rest
+  // Rule #5: Night shift distribution - 3 to 6 nights per person per month
+  // With 14 staff, 2 per night × 30 days = 60 nights total / 14 = ~4.3 avg
+  // Allow range 3-6 for fair distribution with coverage constraints
   // NOTE: target_state is ignored; mapper uses Math.max(availableStates) for night state
   await upsertItem(coreGlobal.id, 'night_distribution', {
-    label: 'Night Distribution (2-8 per Person)',
+    label: 'Night Distribution (3-6 per Person)',
     type: 'fairness',
     value: {
       enabled: true,
-      min_nights: 2,
-      max_nights: 8,
+      min_nights: 3,
+      max_nights: 6,
       target_state: 2,  // 7E night state (E=2); mapper will use max state dynamically
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },

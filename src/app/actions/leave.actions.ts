@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/lib/auth'
 import { isSuperAdmin } from '@/lib/permissions'
@@ -91,7 +92,7 @@ export async function getLeavesAction(params: {
   try {
     const { startDate, endDate, staffId, leaveType, status } = params
 
-    const where: any = {}
+    const where: Prisma.LeaveWhereInput = {}
 
     // Filter by date range (leaves that overlap with the range)
     if (startDate && endDate) {
@@ -176,7 +177,7 @@ export async function updateLeaveAction(params: {
       }
     }
 
-    const data: any = {}
+    const data: Prisma.LeaveUpdateInput = {}
     if (startDate) data.startDate = new Date(startDate)
     if (endDate) data.endDate = new Date(endDate)
     if (leaveType) data.leaveType = leaveType

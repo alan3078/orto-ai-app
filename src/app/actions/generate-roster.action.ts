@@ -32,38 +32,65 @@ export async function generateRosterAction(params: {
     // Debug: Log incoming staff IDs
     console.log(`[generateRosterAction] Received ${staffIds.length} staffIds:`, staffIds)
 
-    // Hard-delete any existing rosters that overlap the same month
+    // Hard-delete any existing rosters for the SAME month only
+    // Use year/month matching to avoid timezone-induced overlap issues
     const rosterStartDate = new Date(startDate)
-    const monthStart = new Date(rosterStartDate.getFullYear(), rosterStartDate.getMonth(), 1)
-    const monthEnd = new Date(rosterStartDate.getFullYear(), rosterStartDate.getMonth() + 1, 1)
+    const targetYear = rosterStartDate.getFullYear()
+    const targetMonth = rosterStartDate.getMonth()
+    
+    // Create month boundaries with buffer to handle timezone edge cases
+    // A roster "belongs" to a month if its startDate falls within that calendar month
+    const monthStart = new Date(targetYear, targetMonth, 1)
+    const monthEnd = new Date(targetYear, targetMonth + 1, 1)
+    // Add 2-day buffer on each side to catch timezone-shifted dates
+    const searchStart = new Date(monthStart.getTime() - 2 * 24 * 60 * 60 * 1000)
+    const searchEnd = new Date(monthEnd.getTime() + 2 * 24 * 60 * 60 * 1000)
 
     const existingRosters = await prisma.roster.findMany({
       where: {
-        startDate: { lt: monthEnd },
-        endDate: { gt: monthStart },
+        // Find rosters whose startDate falls within the target month (with buffer)
+        startDate: { 
+          gte: searchStart,
+          lt: searchEnd,
+        },
       },
-      select: { id: true },
+      select: { id: true, name: true, startDate: true },
     })
 
-    if (existingRosters.length > 0) {
-      const rosterIds = existingRosters.map((r) => r.id)
+    // Filter to only delete rosters that actually belong to this month
+    // (check that startDate's month matches target month)
+    const rostersToDelete = existingRosters.filter(r => {
+      const rosterMonth = new Date(r.startDate).getMonth()
+      const rosterYear = new Date(r.startDate).getFullYear()
+      return rosterMonth === targetMonth && rosterYear === targetYear
+    })
+
+    if (rostersToDelete.length > 0) {
+      const rosterIds = rostersToDelete.map((r) => r.id)
+      console.log(`[generateRosterAction] Deleting ${rostersToDelete.length} roster(s) for ${targetYear}-${String(targetMonth + 1).padStart(2, '0')}:`, rostersToDelete.map(r => r.name))
       // Delete shifts first (cascade should handle it, but explicit for safety)
       await prisma.shift.deleteMany({ where: { rosterId: { in: rosterIds } } })
       // Delete rosters
       await prisma.roster.deleteMany({ where: { id: { in: rosterIds } } })
-      console.log(`[generateRosterAction] Deleted ${existingRosters.length} existing roster(s) for month ${monthStart.toISOString().slice(0, 7)}`)
     }
 
     // FN/ADM/RST/002 - Fetch previous month assignments for cross-month constraint enforcement
-    // Get the previous month's date range
-    const previousMonthEnd = monthStart // End of prev month = start of current month
-    const previousMonthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1)
+    // Get the previous month's date range with buffer for timezone edge cases
+    const prevMonthYear = targetMonth === 0 ? targetYear - 1 : targetYear
+    const prevMonth = targetMonth === 0 ? 11 : targetMonth - 1
+    const prevMonthStart = new Date(prevMonthYear, prevMonth, 1)
+    const prevMonthEnd = new Date(targetYear, targetMonth, 1)
+    // Add buffer for timezone issues
+    const prevSearchStart = new Date(prevMonthStart.getTime() - 2 * 24 * 60 * 60 * 1000)
+    const prevSearchEnd = new Date(prevMonthEnd.getTime() + 2 * 24 * 60 * 60 * 1000)
     
-    // Fetch previous month's roster
-    const previousRoster = await prisma.roster.findFirst({
+    // Fetch previous month's roster - find by startDate in previous month range
+    const previousRosterCandidates = await prisma.roster.findMany({
       where: {
-        startDate: { lt: previousMonthEnd },
-        endDate: { gt: previousMonthStart },
+        startDate: { 
+          gte: prevSearchStart,
+          lt: prevSearchEnd,
+        },
         status: 'COMPLETED',
         shiftType: shiftType, // Must match shift type
       },
@@ -77,6 +104,13 @@ export async function generateRosterAction(params: {
           orderBy: { timeSlot: 'desc' },
         }
       }
+    })
+    
+    // Filter to find roster that actually belongs to previous month
+    const previousRoster = previousRosterCandidates.find(r => {
+      const rosterMonth = new Date(r.startDate).getMonth()
+      const rosterYear = new Date(r.startDate).getFullYear()
+      return rosterMonth === prevMonth && rosterYear === prevMonthYear
     })
     
     // Build previous month assignments (last 7 days for pattern checking)
@@ -131,7 +165,8 @@ export async function generateRosterAction(params: {
     // APN: 0=Off, 1=Afternoon, 2=PM, 3=Night
     // SEVEN_E: 0=Off, 1=Day (7), 2=Night (E)
     const availableStates = shiftType === ShiftType.APN ? [0, 1, 2, 3] : [0, 1, 2]
-    const systemConstraints = await buildSystemConstraints(systemPolicies, staff, availableStates)
+    // Pass timeSlots to buildSystemConstraints for dynamic constraint generation
+    const systemConstraints = await buildSystemConstraints(systemPolicies, staff, availableStates, timeSlots)
 
     // Fetch shift type config and build working hours constraints dynamically
     const hoursConfig = await fetchShiftTypeHoursConfig(shiftType)

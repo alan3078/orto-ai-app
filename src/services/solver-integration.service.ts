@@ -8,6 +8,35 @@ import {
 } from '@/lib/validations/solver'
 import { ValidateResponseSchema, type ValidateResponse } from '@/lib/validations/validator'
 import { ConstraintType, ShiftType } from '@/types/enums'
+import type { 
+  ResourceAttributesMap, 
+  PreviousMonthAssignment,
+  SystemConstraint,
+} from '@/types/roster'
+
+/**
+ * Staff with roles from database query
+ */
+interface StaffWithRoles {
+  id: string
+  visibleId: string
+  gender?: string | null
+  staffRoles?: Array<{ role: { name: string } }>
+  user?: { name: string; email: string | null }
+}
+
+/**
+ * Constraint from database
+ */
+interface DbConstraint {
+  id: string
+  name: string
+  type: string
+  config: unknown
+  isRequired?: boolean
+  isActive: boolean
+  shiftType?: string | null
+}
 
 /**
  * Solver Integration Service
@@ -38,10 +67,10 @@ export class SolverIntegrationService {
     timeSlots: number,
     staffIds: string[],
     constraintIds: string[],
-    systemConstraints: Array<{ type: string; config: Record<string, unknown> }> = [],
-    resourceAttributes: Record<string, any> = {},
+    systemConstraints: SystemConstraint[] = [],
+    resourceAttributes: ResourceAttributesMap = {},
     shiftType: ShiftType = ShiftType.APN,
-    previousMonthAssignments: Array<{ resource: string; offset_days: number; state: number }> = []
+    previousMonthAssignments: PreviousMonthAssignment[] = []
   ): Promise<{ rosterId: string; status: string }> {
     // Step 1: Fetch staff and constraints from database
     console.log(`[SolverIntegration] Received ${staffIds.length} staffIds to process`)
@@ -90,7 +119,7 @@ export class SolverIntegrationService {
         timeSlots,
         states,
         constraints: {
-          connect: constraints.map((c: any) => ({ id: c.id })),
+          connect: constraints.map((c: DbConstraint) => ({ id: c.id })),
         },
       },
     })
@@ -127,13 +156,13 @@ export class SolverIntegrationService {
    * Build solver request payload from database models
    */
   private buildSolverRequest(
-    staff: Array<{ id: string; visibleId: string; gender?: string | null; staffRoles?: { role: { name: string } }[] }>,
-    constraints: Array<{ type: string; config: unknown; isRequired?: boolean }>,
+    staff: StaffWithRoles[],
+    constraints: DbConstraint[],
     timeSlots: number,
-    systemConstraints: Array<{ type: string; config: Record<string, unknown>; isRequired?: boolean }> = [],
-    resourceAttributes: Record<string, any> = {},
+    systemConstraints: SystemConstraint[] = [],
+    resourceAttributes: ResourceAttributesMap = {},
     states: number[] = [0, 1, 2],
-    previousMonthAssignments: Array<{ resource: string; offset_days: number; state: number }> = []
+    previousMonthAssignments: PreviousMonthAssignment[] = []
   ) {
     // Map database constraint config to solver format
     const solverConstraints: SolverConstraint[] = constraints.map((c) => {
@@ -290,6 +319,32 @@ export class SolverIntegrationService {
               attribute_filters: config.attribute_filters as Record<string, string[]>,
               is_required,
             }
+          case 'post_block_rest':
+            return {
+              type: 'post_block_rest',
+              resource: config.resource as string,
+              target_state: config.target_state as number,
+              rest_days: config.rest_days as number,
+              is_required,
+            }
+          case 'min_consecutive':
+            return {
+              type: 'min_consecutive',
+              resource: config.resource as string,
+              time_slots: (config.time_slots as number[]) || [],
+              target_state: config.target_state as number,
+              min_block: config.min_block as number,
+              is_required,
+            }
+          case 'night_block_gap':
+            return {
+              type: 'night_block_gap',
+              resource: config.resource as string,
+              time_slots: (config.time_slots as number[]) || [],
+              target_state: config.target_state as number,
+              min_gap_days: config.min_gap_days as number,
+              is_required,
+            }
           default:
             console.warn(`[SolverIntegration] Skipping unsupported system constraint type: ${sc.type}`)
             return null
@@ -303,7 +358,7 @@ export class SolverIntegrationService {
     const resourceList = staff.map((s) => s.visibleId)
     console.log(`[SolverIntegration] Building payload with ${resourceList.length} resources:`, resourceList)
 
-    const payload: any = {
+    const payload = {
       config: {
         resources: resourceList,
         time_slots: timeSlots,
@@ -317,6 +372,8 @@ export class SolverIntegrationService {
         ),
       },
       constraints: allConstraints,
+      resource_attributes: undefined as ResourceAttributesMap | undefined,
+      previous_month_assignments: undefined as PreviousMonthAssignment[] | undefined,
     }
 
     // Include resource_attributes if present (FN/ADM/STF/007)
@@ -335,11 +392,11 @@ export class SolverIntegrationService {
     // Basic validation for known types; new extended types may be validated server-side
     try {
       SolverConfigSchema.parse({ resources: payload.config.resources, time_slots: payload.config.time_slots, states: payload.config.states })
-      payload.constraints.forEach((c: any) => {
+      for (const c of payload.constraints) {
         if (['point','vertical_sum','horizontal_sum','sliding_window'].includes(c.type)) {
           SolverConstraintSchema.parse(c)
         }
-      })
+      }
     } catch (e) {
       console.warn('[SolverIntegration] Validation warning:', (e as Error).message)
     }
@@ -375,7 +432,7 @@ export class SolverIntegrationService {
    */
   private async saveSolverResults(
     rosterId: string,
-    staff: Array<{ id: string; visibleId: string; staffRoles?: { role: { name: string } }[] }>,
+    staff: StaffWithRoles[],
     solverResponse: SolverResponse,
     startDate: Date,
     timeSlots: number,
@@ -550,7 +607,8 @@ export class SolverIntegrationService {
     const staffMap = new Map<string, string>() // staffId -> visibleId
 
     for (const shift of roster.shifts) {
-      const visibleId = (shift.staff as any).visibleId
+      const staffWithVisibleId = shift.staff as { visibleId: string }
+      const visibleId = staffWithVisibleId.visibleId
       staffMap.set(shift.staffId, visibleId)
       
       if (!schedule[visibleId]) {
@@ -559,8 +617,8 @@ export class SolverIntegrationService {
       }
       schedule[visibleId][shift.timeSlot] = shift.state
       
-      // Track IC assignments (cast to access isIC field)
-      if ((shift as any).isIC) {
+      // Track IC assignments
+      if (shift.isIC) {
         icAssignments[visibleId].push(shift.timeSlot)
       }
     }
@@ -575,17 +633,17 @@ export class SolverIntegrationService {
     })
 
     const resourceAttributes = Object.fromEntries(
-      staff.map((s: any) => [
+      staff.map((s) => [
         s.visibleId,
         {
           gender: s.gender,
-          roles: s.staffRoles.map((sr: any) => sr.role.name),
+          roles: s.staffRoles.map((sr) => sr.role.name),
         },
       ])
     )
 
     // Step 4: Build validation request
-    const constraintNames = roster.constraints.map((c: any) => c.name || 'Unnamed Constraint')
+    const constraintNames = roster.constraints.map((c) => c.name || 'Unnamed Constraint')
     
     // Build state mapping based on shift type for summary display
     // SEVEN_E: O=Off, 7=Day Shift (0700-1900), E=Night Shift (1900-0700)
@@ -604,7 +662,7 @@ export class SolverIntegrationService {
       constraint_names: constraintNames,
       ic_assignments: icAssignments,
       state_mapping: stateMapping,
-      constraints: roster.constraints.map((c: any) => {
+      constraints: roster.constraints.map((c) => {
         const config = c.config as Record<string, unknown>
         // Transform DB constraint to solver format (same logic as generateRoster)
         switch (c.type) {
