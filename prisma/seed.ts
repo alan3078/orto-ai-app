@@ -1,29 +1,29 @@
-import { PrismaClient, UserRole } from '@prisma/client'
-import type { Prisma, Constraint, ShiftType } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { Pool } from 'pg'
-import { hash } from 'bcryptjs'
+import { PrismaClient, UserRole } from '@prisma/client';
+import type { Prisma, Constraint, ShiftType } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
+import { hash } from 'bcryptjs';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-})
+});
 
-const adapter = new PrismaPg(pool)
-const prisma = new PrismaClient({ adapter })
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 // Helper to create User + Staff together (1:1 relationship)
 async function createUserWithStaff(data: {
-  username: string
-  email?: string
-  name: string
-  password: string
-  role: UserRole
-  visibleId: string
-  rank?: string
-  gender?: 'M' | 'F'
+  username: string;
+  email?: string;
+  name: string;
+  password: string;
+  role: UserRole;
+  visibleId: string;
+  rank?: string;
+  gender?: 'M' | 'F';
 }) {
-  const passwordHash = await hash(data.password, 12)
-  
+  const passwordHash = await hash(data.password, 12);
+
   const user = await prisma.user.create({
     data: {
       username: data.username,
@@ -43,42 +43,42 @@ async function createUserWithStaff(data: {
       },
     },
     include: { staff: true },
-  })
-  
-  return user
+  });
+
+  return user;
 }
 
 async function main() {
-  console.log('🌱 Seeding database...')
+  console.log('🌱 Seeding database...');
 
   // Clear existing data (only if tables exist). Support both legacy PascalCase and new snake_case.
   try {
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE shift CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE roster CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE "_ConstraintToRoster" CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE constraint CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE leave CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE public_holiday CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE staff_role CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE staff CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE staff_group CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE role CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE shift_definition CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE shift_type_config CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE "user" CASCADE')
-    console.log('✅ Cleared existing data')
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE shift CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE roster CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE "_ConstraintToRoster" CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE constraint CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE leave CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE public_holiday CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE staff_role CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE staff CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE staff_group CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE role CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE shift_definition CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE shift_type_config CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE "user" CASCADE');
+    console.log('✅ Cleared existing data');
   } catch (e) {
-    console.log('⚠️  Tables may not exist yet, continuing...')
+    console.log('⚠️  Tables may not exist yet, continuing...');
   }
 
   // ============================================================================
   // Create Default Admin User (FN/ADM/AUTH/001)
   // Admin has no Staff record (system admin, not a nurse)
   // ============================================================================
-  const adminUsername = 'admin'
-  const adminPassword = 'password'
-  const adminPasswordHash = await hash(adminPassword, 12)
-  
+  const adminUsername = 'admin';
+  const adminPassword = 'password';
+  const adminPasswordHash = await hash(adminPassword, 12);
+
   await prisma.user.upsert({
     where: { username: adminUsername },
     update: {},
@@ -91,20 +91,20 @@ async function main() {
       isActive: true,
       mustResetPassword: false, // Set to false for initial setup convenience
     },
-  })
-  console.log(`✅ Created default super admin user: ${adminUsername} / ${adminPassword}`)
+  });
+  console.log(`✅ Created default super admin user: ${adminUsername} / ${adminPassword}`);
 
   // ============================================================================
   // Create Permission Modules and Permissions (FN/ADM/AUTH/002)
   // ============================================================================
-  
+
   // Clear existing permissions
   try {
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE role_permission CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE permission CASCADE')
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE permission_module CASCADE')
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE role_permission CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE permission CASCADE');
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE permission_module CASCADE');
   } catch (e) {
-    console.log('⚠️  Permission tables may not exist yet, continuing...')
+    console.log('⚠️  Permission tables may not exist yet, continuing...');
   }
 
   // Define modules with their permissions
@@ -115,7 +115,11 @@ async function main() {
       description: 'Home dashboard and overview',
       icon: 'Home',
       permissions: [
-        { action: 'read', name: 'View Dashboard', description: 'View the dashboard' },
+        {
+          action: 'read',
+          name: 'View Dashboard',
+          description: 'View the dashboard',
+        },
       ],
     },
     {
@@ -124,10 +128,26 @@ async function main() {
       description: 'Manage staff members and their information',
       icon: 'Users',
       permissions: [
-        { action: 'create', name: 'Create Staff', description: 'Add new staff members' },
-        { action: 'read', name: 'View Staff', description: 'View staff list and details' },
-        { action: 'update', name: 'Edit Staff', description: 'Modify staff information' },
-        { action: 'delete', name: 'Delete Staff', description: 'Remove staff members' },
+        {
+          action: 'create',
+          name: 'Create Staff',
+          description: 'Add new staff members',
+        },
+        {
+          action: 'read',
+          name: 'View Staff',
+          description: 'View staff list and details',
+        },
+        {
+          action: 'update',
+          name: 'Edit Staff',
+          description: 'Modify staff information',
+        },
+        {
+          action: 'delete',
+          name: 'Delete Staff',
+          description: 'Remove staff members',
+        },
       ],
     },
     {
@@ -136,10 +156,26 @@ async function main() {
       description: 'Manage staff groups and assignments',
       icon: 'UsersRound',
       permissions: [
-        { action: 'create', name: 'Create Group', description: 'Create new staff groups' },
-        { action: 'read', name: 'View Groups', description: 'View staff groups' },
-        { action: 'update', name: 'Edit Group', description: 'Modify staff groups' },
-        { action: 'delete', name: 'Delete Group', description: 'Delete staff groups' },
+        {
+          action: 'create',
+          name: 'Create Group',
+          description: 'Create new staff groups',
+        },
+        {
+          action: 'read',
+          name: 'View Groups',
+          description: 'View staff groups',
+        },
+        {
+          action: 'update',
+          name: 'Edit Group',
+          description: 'Modify staff groups',
+        },
+        {
+          action: 'delete',
+          name: 'Delete Group',
+          description: 'Delete staff groups',
+        },
       ],
     },
     {
@@ -148,11 +184,31 @@ async function main() {
       description: 'Manage staff leaves and holidays',
       icon: 'CalendarDays',
       permissions: [
-        { action: 'create', name: 'Create Leave', description: 'Add new leave records' },
-        { action: 'read', name: 'View Leave', description: 'View leave records and calendar' },
-        { action: 'update', name: 'Edit Leave', description: 'Modify leave records' },
-        { action: 'delete', name: 'Delete Leave', description: 'Delete leave records' },
-        { action: 'approve', name: 'Approve Leave', description: 'Approve or reject leave requests' },
+        {
+          action: 'create',
+          name: 'Create Leave',
+          description: 'Add new leave records',
+        },
+        {
+          action: 'read',
+          name: 'View Leave',
+          description: 'View leave records and calendar',
+        },
+        {
+          action: 'update',
+          name: 'Edit Leave',
+          description: 'Modify leave records',
+        },
+        {
+          action: 'delete',
+          name: 'Delete Leave',
+          description: 'Delete leave records',
+        },
+        {
+          action: 'approve',
+          name: 'Approve Leave',
+          description: 'Approve or reject leave requests',
+        },
       ],
     },
     {
@@ -161,11 +217,31 @@ async function main() {
       description: 'Create and manage staff rosters',
       icon: 'Calendar',
       permissions: [
-        { action: 'create', name: 'Create Roster', description: 'Generate new rosters' },
-        { action: 'read', name: 'View Roster', description: 'View rosters and schedules' },
-        { action: 'update', name: 'Edit Roster', description: 'Modify roster assignments' },
-        { action: 'delete', name: 'Delete Roster', description: 'Delete rosters' },
-        { action: 'publish', name: 'Publish Roster', description: 'Publish rosters to staff' },
+        {
+          action: 'create',
+          name: 'Create Roster',
+          description: 'Generate new rosters',
+        },
+        {
+          action: 'read',
+          name: 'View Roster',
+          description: 'View rosters and schedules',
+        },
+        {
+          action: 'update',
+          name: 'Edit Roster',
+          description: 'Modify roster assignments',
+        },
+        {
+          action: 'delete',
+          name: 'Delete Roster',
+          description: 'Delete rosters',
+        },
+        {
+          action: 'publish',
+          name: 'Publish Roster',
+          description: 'Publish rosters to staff',
+        },
       ],
     },
     {
@@ -174,10 +250,26 @@ async function main() {
       description: 'Manage scheduling rules and constraints',
       icon: 'Settings2',
       permissions: [
-        { action: 'create', name: 'Create Constraint', description: 'Add new constraints' },
-        { action: 'read', name: 'View Constraints', description: 'View constraint rules' },
-        { action: 'update', name: 'Edit Constraint', description: 'Modify constraints' },
-        { action: 'delete', name: 'Delete Constraint', description: 'Delete constraints' },
+        {
+          action: 'create',
+          name: 'Create Constraint',
+          description: 'Add new constraints',
+        },
+        {
+          action: 'read',
+          name: 'View Constraints',
+          description: 'View constraint rules',
+        },
+        {
+          action: 'update',
+          name: 'Edit Constraint',
+          description: 'Modify constraints',
+        },
+        {
+          action: 'delete',
+          name: 'Delete Constraint',
+          description: 'Delete constraints',
+        },
       ],
     },
     {
@@ -186,11 +278,27 @@ async function main() {
       description: 'Manage user accounts',
       icon: 'UserCog',
       permissions: [
-        { action: 'create', name: 'Create User', description: 'Create new user accounts' },
+        {
+          action: 'create',
+          name: 'Create User',
+          description: 'Create new user accounts',
+        },
         { action: 'read', name: 'View Users', description: 'View user list' },
-        { action: 'update', name: 'Edit User', description: 'Modify user accounts' },
-        { action: 'delete', name: 'Delete User', description: 'Delete user accounts' },
-        { action: 'reset_password', name: 'Reset Password', description: 'Reset user passwords' },
+        {
+          action: 'update',
+          name: 'Edit User',
+          description: 'Modify user accounts',
+        },
+        {
+          action: 'delete',
+          name: 'Delete User',
+          description: 'Delete user accounts',
+        },
+        {
+          action: 'reset_password',
+          name: 'Reset Password',
+          description: 'Reset user passwords',
+        },
       ],
     },
     {
@@ -199,8 +307,16 @@ async function main() {
       description: 'Manage role permissions',
       icon: 'ShieldCheck',
       permissions: [
-        { action: 'read', name: 'View Permissions', description: 'View role permissions' },
-        { action: 'update', name: 'Edit Permissions', description: 'Modify role permissions' },
+        {
+          action: 'read',
+          name: 'View Permissions',
+          description: 'View role permissions',
+        },
+        {
+          action: 'update',
+          name: 'Edit Permissions',
+          description: 'Modify role permissions',
+        },
       ],
     },
     {
@@ -209,8 +325,16 @@ async function main() {
       description: 'Global system settings',
       icon: 'Sliders',
       permissions: [
-        { action: 'read', name: 'View Config', description: 'View system configuration' },
-        { action: 'update', name: 'Edit Config', description: 'Modify system configuration' },
+        {
+          action: 'read',
+          name: 'View Config',
+          description: 'View system configuration',
+        },
+        {
+          action: 'update',
+          name: 'Edit Config',
+          description: 'Modify system configuration',
+        },
       ],
     },
     {
@@ -219,8 +343,16 @@ async function main() {
       description: 'Shift types and definitions',
       icon: 'Clock',
       permissions: [
-        { action: 'read', name: 'View Shifts', description: 'View shift configurations' },
-        { action: 'update', name: 'Edit Shifts', description: 'Modify shift configurations' },
+        {
+          action: 'read',
+          name: 'View Shifts',
+          description: 'View shift configurations',
+        },
+        {
+          action: 'update',
+          name: 'Edit Shifts',
+          description: 'Modify shift configurations',
+        },
       ],
     },
     {
@@ -229,8 +361,16 @@ async function main() {
       description: 'View and export reports',
       icon: 'BarChart3',
       permissions: [
-        { action: 'read', name: 'View Reports', description: 'View reports and analytics' },
-        { action: 'export', name: 'Export Reports', description: 'Export reports to file' },
+        {
+          action: 'read',
+          name: 'View Reports',
+          description: 'View reports and analytics',
+        },
+        {
+          action: 'export',
+          name: 'Export Reports',
+          description: 'Export reports to file',
+        },
       ],
     },
     {
@@ -239,16 +379,24 @@ async function main() {
       description: 'Leave and schedule change requests',
       icon: 'FileText',
       permissions: [
-        { action: 'create', name: 'Submit Request', description: 'Submit leave/change requests' },
+        {
+          action: 'create',
+          name: 'Submit Request',
+          description: 'Submit leave/change requests',
+        },
         { action: 'read', name: 'View Requests', description: 'View requests' },
-        { action: 'approve', name: 'Approve Request', description: 'Approve/reject requests' },
+        {
+          action: 'approve',
+          name: 'Approve Request',
+          description: 'Approve/reject requests',
+        },
       ],
     },
-  ]
+  ];
 
   // Create modules and permissions
   for (let sortOrder = 0; sortOrder < moduleDefinitions.length; sortOrder++) {
-    const moduleDef = moduleDefinitions[sortOrder]
+    const moduleDef = moduleDefinitions[sortOrder];
     const module = await prisma.permissionModule.create({
       data: {
         code: moduleDef.code,
@@ -258,10 +406,10 @@ async function main() {
         sortOrder,
         isActive: true,
       },
-    })
+    });
 
     for (let permOrder = 0; permOrder < moduleDef.permissions.length; permOrder++) {
-      const permDef = moduleDef.permissions[permOrder]
+      const permDef = moduleDef.permissions[permOrder];
       const permission = await prisma.permission.create({
         data: {
           moduleId: module.id,
@@ -272,7 +420,7 @@ async function main() {
           sortOrder: permOrder,
           isActive: true,
         },
-      })
+      });
 
       // Grant all permissions to SUPER_ADMIN
       await prisma.rolePermission.create({
@@ -281,14 +429,10 @@ async function main() {
           permissionId: permission.id,
           isGranted: true,
         },
-      })
+      });
 
       // Grant most permissions to ADMIN (except system config and role management edit)
-      const adminDenied = [
-        'system_config:update',
-        'role_permission:update',
-        'shift_config:update',
-      ]
+      const adminDenied = ['system_config:update', 'role_permission:update', 'shift_config:update'];
       if (!adminDenied.includes(`${moduleDef.code}:${permDef.action}`)) {
         await prisma.rolePermission.create({
           data: {
@@ -296,18 +440,18 @@ async function main() {
             permissionId: permission.id,
             isGranted: true,
           },
-        })
+        });
       }
 
       // Grant limited permissions to USER
       const userAllowed = [
         'dashboard:read',
         'roster:read',
-        'leave:read',     // View leave calendar and records
-        'leave:create',   // Create own leave (server validates ownership)
+        'leave:read', // View leave calendar and records
+        'leave:create', // Create own leave (server validates ownership)
         'request:create',
         'request:read',
-      ]
+      ];
       if (userAllowed.includes(`${moduleDef.code}:${permDef.action}`)) {
         await prisma.rolePermission.create({
           data: {
@@ -315,11 +459,11 @@ async function main() {
             permissionId: permission.id,
             isGranted: true,
           },
-        })
+        });
       }
     }
   }
-  console.log('✅ Created permission modules and permissions with default role assignments')
+  console.log('✅ Created permission modules and permissions with default role assignments');
 
   // Create Shift Type Configurations (common config for each shift type)
   await prisma.shiftTypeConfig.upsert({
@@ -333,7 +477,7 @@ async function main() {
       maxHoursPerMonth: 190,
       isActive: true,
     },
-  })
+  });
   await prisma.shiftTypeConfig.upsert({
     where: { shiftType: 'SEVEN_E' },
     update: {},
@@ -345,17 +489,17 @@ async function main() {
       maxHoursPerMonth: 190,
       isActive: true,
     },
-  })
-  console.log('✅ Created shift type configurations (APN, 7E)')
+  });
+  console.log('✅ Created shift type configurations (APN, 7E)');
 
   // Create Roles (FN/ADM/STF/007)
   const roleIC = await prisma.role.create({
     data: { name: 'IC', order: 1, isActive: true },
-  })
+  });
   const roleNonIC = await prisma.role.create({
     data: { name: 'Non-IC', order: 2, isActive: true },
-  })
-  console.log('✅ Created 2 roles (IC, Non-IC)')
+  });
+  console.log('✅ Created 2 roles (IC, Non-IC)');
 
   // Create Shift Definitions
   // 7E Pattern (12h shifts):
@@ -368,15 +512,15 @@ async function main() {
   await prisma.shiftDefinition.createMany({
     data: [
       // 7E Pattern (12h shifts)
-      { code: '7', startMinutes: 420, durationMinutes: 720, isActive: true },   // 07:00-19:00 (12h Day)
-      { code: 'E', startMinutes: 1140, durationMinutes: 720, isActive: true },  // 19:00-07:00 (12h Night)
+      { code: '7', startMinutes: 420, durationMinutes: 720, isActive: true }, // 07:00-19:00 (12h Day)
+      { code: 'E', startMinutes: 1140, durationMinutes: 720, isActive: true }, // 19:00-07:00 (12h Night)
       // APN Pattern (8.5h shifts)
-      { code: 'A', startMinutes: 420, durationMinutes: 510, isActive: true },   // 07:00-15:30 (8.5h Afternoon)
-      { code: 'P', startMinutes: 870, durationMinutes: 510, isActive: true },   // 14:30-23:00 (8.5h PM)
-      { code: 'N', startMinutes: 1350, durationMinutes: 510, isActive: true },  // 22:30-07:00 (8.5h Night)
+      { code: 'A', startMinutes: 420, durationMinutes: 510, isActive: true }, // 07:00-15:30 (8.5h Afternoon)
+      { code: 'P', startMinutes: 870, durationMinutes: 510, isActive: true }, // 14:30-23:00 (8.5h PM)
+      { code: 'N', startMinutes: 1350, durationMinutes: 510, isActive: true }, // 22:30-07:00 (8.5h Night)
     ],
-  })
-  console.log('✅ Created 5 shift definitions (7, E for 7E; A, P, N for APN)')
+  });
+  console.log('✅ Created 5 shift definitions (7, E for 7E; A, P, N for APN)');
 
   // Create Staff for Demo Hospital Nursing Unit
   // 14 nurses with various ranks and roles
@@ -385,22 +529,120 @@ async function main() {
   // Each staff member gets a User account (1:1 relationship)
   const staffData = [
     // IC Role Staff (Senior nurses with IC certification)
-    { visibleId: 'NUR001', username: 'michael.wong', name: 'Michael Wong', email: 'michael.wong@orto.ai', rank: 'SNO', gender: 'M' as const },
-    { visibleId: 'NUR002', username: 'grace.chen', name: 'Grace Chen', email: 'grace.chen@orto.ai', rank: 'SRN', gender: 'F' as const },
-    { visibleId: 'NUR003', username: 'dorothy.lee', name: 'Dorothy Lee', email: 'dorothy.lee@orto.ai', rank: 'SRN', gender: 'F' as const },
-    { visibleId: 'NUR004', username: 'alan.lam', name: 'Alan Lam', email: 'alan.lam@orto.ai', rank: 'RN', gender: 'M' as const },
-    { visibleId: 'NUR005', username: 'emily.tan', name: 'Emily Tan', email: 'emily.tan@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR006', username: 'john.liu', name: 'John Liu', email: 'john.liu@orto.ai', rank: 'RN', gender: 'M' as const },
-    { visibleId: 'NUR007', username: 'polly.cheung', name: 'Polly Cheung', email: 'polly.cheung@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR008', username: 'pinky.yip', name: 'Pinky Yip', email: 'pinky.yip@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR009', username: 'macy.hui', name: 'Macy Hui', email: 'macy.hui@orto.ai', rank: 'RN', gender: 'F' as const },
+    {
+      visibleId: 'NUR001',
+      username: 'michael.wong',
+      name: 'Michael Wong',
+      email: 'michael.wong@orto.ai',
+      rank: 'SNO',
+      gender: 'M' as const,
+    },
+    {
+      visibleId: 'NUR002',
+      username: 'grace.chen',
+      name: 'Grace Chen',
+      email: 'grace.chen@orto.ai',
+      rank: 'SRN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR003',
+      username: 'dorothy.lee',
+      name: 'Dorothy Lee',
+      email: 'dorothy.lee@orto.ai',
+      rank: 'SRN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR004',
+      username: 'alan.lam',
+      name: 'Alan Lam',
+      email: 'alan.lam@orto.ai',
+      rank: 'RN',
+      gender: 'M' as const,
+    },
+    {
+      visibleId: 'NUR005',
+      username: 'emily.tan',
+      name: 'Emily Tan',
+      email: 'emily.tan@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR006',
+      username: 'john.liu',
+      name: 'John Liu',
+      email: 'john.liu@orto.ai',
+      rank: 'RN',
+      gender: 'M' as const,
+    },
+    {
+      visibleId: 'NUR007',
+      username: 'polly.cheung',
+      name: 'Polly Cheung',
+      email: 'polly.cheung@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR008',
+      username: 'pinky.yip',
+      name: 'Pinky Yip',
+      email: 'pinky.yip@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR009',
+      username: 'macy.hui',
+      name: 'Macy Hui',
+      email: 'macy.hui@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
     // Non-IC Role Staff (Junior nurses)
-    { visibleId: 'NUR010', username: 'joey.fung', name: 'Joey Fung', email: 'joey.fung@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR011', username: 'amy.chow', name: 'Amy Chow', email: 'amy.chow@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR012', username: 'sammi.ho', name: 'Sammi Ho', email: 'sammi.ho@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR013', username: 'janice.lau', name: 'Janice Lau', email: 'janice.lau@orto.ai', rank: 'RN', gender: 'F' as const },
-    { visibleId: 'NUR014', username: 'tracy.ma', name: 'Tracy Ma', email: 'tracy.ma@orto.ai', rank: 'RN', gender: 'F' as const },
-  ]
+    {
+      visibleId: 'NUR010',
+      username: 'joey.fung',
+      name: 'Joey Fung',
+      email: 'joey.fung@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR011',
+      username: 'amy.chow',
+      name: 'Amy Chow',
+      email: 'amy.chow@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR012',
+      username: 'sammi.ho',
+      name: 'Sammi Ho',
+      email: 'sammi.ho@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR013',
+      username: 'janice.lau',
+      name: 'Janice Lau',
+      email: 'janice.lau@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
+    {
+      visibleId: 'NUR014',
+      username: 'tracy.ma',
+      name: 'Tracy Ma',
+      email: 'tracy.ma@orto.ai',
+      rank: 'RN',
+      gender: 'F' as const,
+    },
+  ];
 
   const users = await Promise.all(
     staffData.map((s) =>
@@ -415,160 +657,236 @@ async function main() {
         gender: s.gender,
       })
     )
-  )
-  const staff = users.map((u) => u.staff!)
-  console.log(`✅ Created ${staff.length} staff members with user accounts`)
+  );
+  const staff = users.map((u) => u.staff!);
+  console.log(`✅ Created ${staff.length} staff members with user accounts`);
 
   // Single staff group for all nurses
   const masterGroup = await prisma.staffGroup.create({
-    data: { name: 'Ward A Nursing Team', description: 'General Ward A - Demo Hospital' },
-  })
+    data: {
+      name: 'Ward A Nursing Team',
+      description: 'General Ward A - Demo Hospital',
+    },
+  });
   for (const s of staff) {
-    await prisma.staff.update({ where: { id: s.id }, data: { staffGroupId: masterGroup.id } })
+    await prisma.staff.update({
+      where: { id: s.id },
+      data: { staffGroupId: masterGroup.id },
+    });
   }
-  console.log('✅ Assigned all staff to Ward A Nursing Team')
+  console.log('✅ Assigned all staff to Ward A Nursing Team');
 
   // Assign roles: First 9 are IC, remaining 5 are Non-IC
-  const staffRoleData: { staffId: string; roleId: string }[] = []
-  staff.slice(0, 9).forEach(s => staffRoleData.push({ staffId: s.id, roleId: roleIC.id }))
-  staff.slice(9).forEach(s => staffRoleData.push({ staffId: s.id, roleId: roleNonIC.id }))
-  await prisma.staffRole.createMany({ data: staffRoleData })
-  console.log('✅ Assigned IC role to first 9 staff, Non-IC role to remaining 5')
+  const staffRoleData: { staffId: string; roleId: string }[] = [];
+  staff.slice(0, 9).forEach((s) => staffRoleData.push({ staffId: s.id, roleId: roleIC.id }));
+  staff.slice(9).forEach((s) => staffRoleData.push({ staffId: s.id, roleId: roleNonIC.id }));
+  await prisma.staffRole.createMany({ data: staffRoleData });
+  console.log('✅ Assigned IC role to first 9 staff, Non-IC role to remaining 5');
 
   // Advanced constraints for APN shift type
   // APN States: 0=Off, 1=Afternoon, 2=PM, 3=Night
   // Coverage: Afternoon =4, PM =4, Night =2 (daily requirement)
   // Attribute coverage: At least 1 IC and 1 Female on each shift type
   // Common rules applied to ALL staff (not per-employee)
-  const allTimeSlots = Array.from({ length: 30 }, (_, i) => i) // June 30 days
+  const allTimeSlots = Array.from({ length: 30 }, (_, i) => i); // June 30 days
 
-  const constraints: Constraint[] = []
+  const constraints: Constraint[] = [];
 
   // ========== COVERAGE CONSTRAINTS (APN-specific) ==========
   // Afternoon shift coverage (state 1) - exactly 4 per day
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Afternoon Coverage',
-      type: 'vertical_sum',
-      description: 'Exactly 4 staff on afternoon shift',
-      config: { time_slot: 'ALL', target_state: 1, operator: '==', value: 4 },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Afternoon Coverage',
+        type: 'vertical_sum',
+        description: 'Exactly 4 staff on afternoon shift',
+        config: { time_slot: 'ALL', target_state: 1, operator: '==', value: 4 },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // PM shift coverage (state 2) - exactly 4 per day
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'PM Coverage',
-      type: 'vertical_sum',
-      description: 'Exactly 4 staff on PM shift',
-      config: { time_slot: 'ALL', target_state: 2, operator: '==', value: 4 },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'PM Coverage',
+        type: 'vertical_sum',
+        description: 'Exactly 4 staff on PM shift',
+        config: { time_slot: 'ALL', target_state: 2, operator: '==', value: 4 },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // Night shift coverage (state 3)
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Night Coverage',
-      type: 'vertical_sum',
-      description: 'Exactly 2 staff on night shift',
-      config: { time_slot: 'ALL', target_state: 3, operator: '==', value: 2 },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Night Coverage',
+        type: 'vertical_sum',
+        description: 'Exactly 2 staff on night shift',
+        config: { time_slot: 'ALL', target_state: 3, operator: '==', value: 2 },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // ========== ATTRIBUTE-BASED COVERAGE (IC Role) - APN-specific ==========
   // IC coverage for each shift type
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'IC Afternoon Coverage',
-      type: 'attribute_vertical_sum',
-      description: 'At least one IC on each afternoon shift',
-      config: { time_slot: 'ALL', target_state: 1, operator: '>=', value: 1, attribute: 'roles', attribute_values: ['IC'] },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'IC PM Coverage',
-      type: 'attribute_vertical_sum',
-      description: 'At least one IC on each PM shift',
-      config: { time_slot: 'ALL', target_state: 2, operator: '>=', value: 1, attribute: 'roles', attribute_values: ['IC'] },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'IC Night Coverage',
-      type: 'attribute_vertical_sum',
-      description: 'At least one IC on each night shift',
-      config: { time_slot: 'ALL', target_state: 3, operator: '>=', value: 1, attribute: 'roles', attribute_values: ['IC'] },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'IC Afternoon Coverage',
+        type: 'attribute_vertical_sum',
+        description: 'At least one IC on each afternoon shift',
+        config: {
+          time_slot: 'ALL',
+          target_state: 1,
+          operator: '>=',
+          value: 1,
+          attribute: 'roles',
+          attribute_values: ['IC'],
+        },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'IC PM Coverage',
+        type: 'attribute_vertical_sum',
+        description: 'At least one IC on each PM shift',
+        config: {
+          time_slot: 'ALL',
+          target_state: 2,
+          operator: '>=',
+          value: 1,
+          attribute: 'roles',
+          attribute_values: ['IC'],
+        },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'IC Night Coverage',
+        type: 'attribute_vertical_sum',
+        description: 'At least one IC on each night shift',
+        config: {
+          time_slot: 'ALL',
+          target_state: 3,
+          operator: '>=',
+          value: 1,
+          attribute: 'roles',
+          attribute_values: ['IC'],
+        },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // ========== ATTRIBUTE-BASED COVERAGE (Gender) - APN-specific ==========
   // Female coverage for each shift type
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Female Afternoon Coverage',
-      type: 'attribute_vertical_sum',
-      description: 'At least one female on each afternoon shift',
-      config: { time_slot: 'ALL', target_state: 1, operator: '>=', value: 1, attribute: 'gender', attribute_values: ['F'] },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Female PM Coverage',
-      type: 'attribute_vertical_sum',
-      description: 'At least one female on each PM shift',
-      config: { time_slot: 'ALL', target_state: 2, operator: '>=', value: 1, attribute: 'gender', attribute_values: ['F'] },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Female Night Coverage',
-      type: 'attribute_vertical_sum',
-      description: 'At least one female on each night shift',
-      config: { time_slot: 'ALL', target_state: 3, operator: '>=', value: 1, attribute: 'gender', attribute_values: ['F'] },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Female Afternoon Coverage',
+        type: 'attribute_vertical_sum',
+        description: 'At least one female on each afternoon shift',
+        config: {
+          time_slot: 'ALL',
+          target_state: 1,
+          operator: '>=',
+          value: 1,
+          attribute: 'gender',
+          attribute_values: ['F'],
+        },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Female PM Coverage',
+        type: 'attribute_vertical_sum',
+        description: 'At least one female on each PM shift',
+        config: {
+          time_slot: 'ALL',
+          target_state: 2,
+          operator: '>=',
+          value: 1,
+          attribute: 'gender',
+          attribute_values: ['F'],
+        },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Female Night Coverage',
+        type: 'attribute_vertical_sum',
+        description: 'At least one female on each night shift',
+        config: {
+          time_slot: 'ALL',
+          target_state: 3,
+          operator: '>=',
+          value: 1,
+          attribute: 'gender',
+          attribute_values: ['F'],
+        },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // ========== PATTERN BLOCKS (APN-specific Safety Rules) ==========
   // Block dangerous shift transitions
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Block NIGHT→AFTERNOON Transition',
-      type: 'pattern_block',
-      description: 'Prevent immediate night then afternoon shift next day',
-      config: { pattern: ['NIGHT', 'AFTERNOON'], state_mapping: { NIGHT: 3, AFTERNOON: 1, PM: 2, OFF: 0 } },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any
-  }))
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Block NIGHT→PM Transition',
-      type: 'pattern_block',
-      description: 'Prevent immediate night then PM shift next day',
-      config: { pattern: ['NIGHT', 'PM'], state_mapping: { NIGHT: 3, AFTERNOON: 1, PM: 2, OFF: 0 } },
-      shiftType: 'APN',
-      isRequired: true,
-    } as any
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Block NIGHT→AFTERNOON Transition',
+        type: 'pattern_block',
+        description: 'Prevent immediate night then afternoon shift next day',
+        config: {
+          pattern: ['NIGHT', 'AFTERNOON'],
+          state_mapping: { NIGHT: 3, AFTERNOON: 1, PM: 2, OFF: 0 },
+        },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Block NIGHT→PM Transition',
+        type: 'pattern_block',
+        description: 'Prevent immediate night then PM shift next day',
+        config: {
+          pattern: ['NIGHT', 'PM'],
+          state_mapping: { NIGHT: 3, AFTERNOON: 1, PM: 2, OFF: 0 },
+        },
+        shiftType: 'APN',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // ==========================================================================
   // 7E MODE CONSTRAINTS (FN/ADM/RUL/003 - 7E Staffing)
@@ -580,81 +898,94 @@ async function main() {
 
   // ========== COVERAGE CONSTRAINTS (7E-specific) ==========
   // Day shift coverage (state 1) - exactly 4 staff
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Day Coverage',
-      type: 'vertical_sum',
-      description: 'Exactly 4 staff on day shift (7)',
-      config: { time_slot: 'ALL', target_state: 1, operator: '==', value: 4 },
-      shiftType: 'SEVEN_E',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Day Coverage',
+        type: 'vertical_sum',
+        description: 'Exactly 4 staff on day shift (7)',
+        config: { time_slot: 'ALL', target_state: 1, operator: '==', value: 4 },
+        shiftType: 'SEVEN_E',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // Night shift coverage (state 2) - exactly 2 staff
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Night Coverage',
-      type: 'vertical_sum',
-      description: 'Exactly 2 staff on night shift (E)',
-      config: { time_slot: 'ALL', target_state: 2, operator: '==', value: 2 },
-      shiftType: 'SEVEN_E',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Night Coverage',
+        type: 'vertical_sum',
+        description: 'Exactly 2 staff on night shift (E)',
+        config: { time_slot: 'ALL', target_state: 2, operator: '==', value: 2 },
+        shiftType: 'SEVEN_E',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // ========== COMPOUND ATTRIBUTE CONSTRAINTS (Female IC) - 7E-specific ==========
   // Female IC coverage for Day shift - requires compound filter (gender=F AND role=IC)
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Female IC Day Coverage',
-      type: 'compound_attribute_vertical_sum',
-      description: 'At least one female IC on each day shift',
-      config: { 
-        time_slot: 'ALL', 
-        target_state: 1, 
-        operator: '>=', 
-        value: 1, 
-        attribute_filters: { gender: ['F'], roles: ['IC'] }
-      },
-      shiftType: 'SEVEN_E',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Female IC Day Coverage',
+        type: 'compound_attribute_vertical_sum',
+        description: 'At least one female IC on each day shift',
+        config: {
+          time_slot: 'ALL',
+          target_state: 1,
+          operator: '>=',
+          value: 1,
+          attribute_filters: { gender: ['F'], roles: ['IC'] },
+        },
+        shiftType: 'SEVEN_E',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // Female IC coverage for Night shift - requires compound filter (gender=F AND role=IC)
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Female IC Night Coverage',
-      type: 'compound_attribute_vertical_sum',
-      description: 'At least one female IC on each night shift',
-      config: { 
-        time_slot: 'ALL', 
-        target_state: 2, 
-        operator: '>=', 
-        value: 1, 
-        attribute_filters: { gender: ['F'], roles: ['IC'] }
-      },
-      shiftType: 'SEVEN_E',
-      isRequired: true,
-    } as any,
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Female IC Night Coverage',
+        type: 'compound_attribute_vertical_sum',
+        description: 'At least one female IC on each night shift',
+        config: {
+          time_slot: 'ALL',
+          target_state: 2,
+          operator: '>=',
+          value: 1,
+          attribute_filters: { gender: ['F'], roles: ['IC'] },
+        },
+        shiftType: 'SEVEN_E',
+        isRequired: true,
+      } as any,
+    })
+  );
 
   // ========== PATTERN BLOCKS (7E-specific Safety Rules) ==========
   // Block dangerous Night→Day transition (prevents fatigue)
   // Requirement #8: Able to assign dayoff after E/N shifts
-  constraints.push(await prisma.constraint.create({
-    data: {
-      name: 'Block NIGHT→DAY Transition',
-      type: 'pattern_block',
-      description: 'Prevent immediate night then day shift next day (fatigue risk)',
-      config: { pattern: ['NIGHT', 'DAY'], state_mapping: { NIGHT: 2, DAY: 1, OFF: 0 } },
-      shiftType: 'SEVEN_E',
-      isRequired: true,
-    } as any
-  }))
+  constraints.push(
+    await prisma.constraint.create({
+      data: {
+        name: 'Block NIGHT→DAY Transition',
+        type: 'pattern_block',
+        description: 'Prevent immediate night then day shift next day (fatigue risk)',
+        config: {
+          pattern: ['NIGHT', 'DAY'],
+          state_mapping: { NIGHT: 2, DAY: 1, OFF: 0 },
+        },
+        shiftType: 'SEVEN_E',
+        isRequired: true,
+      } as any,
+    })
+  );
 
-  console.log(`✅ Created ${constraints.length} constraints (APN + 7E modes)`)
+  console.log(`✅ Created ${constraints.length} constraints (APN + 7E modes)`);
 
   // --------------------------------------------------------------------------
   // REQUIREMENTS FULFILLMENT SUMMARY (Beta Release):
@@ -677,7 +1008,7 @@ async function main() {
   // --------------------------------------------------------------------------
   // System Configuration (GLOBAL + ROSTER) – upsert without destructive truncate
   // --------------------------------------------------------------------------
-  const RESET_SYSTEM_CONFIG = process.env.RESET_SYSTEM_CONFIG === 'true'
+  const RESET_SYSTEM_CONFIG = process.env.RESET_SYSTEM_CONFIG === 'true';
 
   // Upsert groups by stable code
   const coreGlobal = await prisma.systemConfigGroup.upsert({
@@ -690,7 +1021,7 @@ async function main() {
       isActive: true,
       locked: true,
     },
-  })
+  });
 
   const rosterMgmt = await prisma.systemConfigGroup.upsert({
     where: { code: 'roster_management' },
@@ -702,21 +1033,25 @@ async function main() {
       isActive: true,
       locked: false,
     },
-  })
+  });
 
   // Helper to upsert item with composite unique (groupId, key)
-  async function upsertItem(groupId: number, key: string, data: {
-    label: string
-    type: string
-    value: Prisma.InputJsonValue
-    priority?: number
-    isActive?: boolean
-    locked?: boolean
-  }) {
+  async function upsertItem(
+    groupId: number,
+    key: string,
+    data: {
+      label: string;
+      type: string;
+      value: Prisma.InputJsonValue;
+      priority?: number;
+      isActive?: boolean;
+      locked?: boolean;
+    }
+  ) {
     // Try find existing
     const existing = await prisma.systemConfigItem.findUnique({
       where: { groupId_key: { groupId, key } },
-    })
+    });
     if (!existing) {
       await prisma.systemConfigItem.create({
         data: {
@@ -729,8 +1064,8 @@ async function main() {
           isActive: data.isActive ?? true,
           locked: data.locked ?? false,
         },
-      })
-      return 'created'
+      });
+      return 'created';
     }
     if (RESET_SYSTEM_CONFIG) {
       await prisma.systemConfigItem.update({
@@ -743,26 +1078,27 @@ async function main() {
           isActive: data.isActive ?? existing.isActive,
           locked: data.locked ?? existing.locked,
         },
-      })
-      return 'updated'
+      });
+      return 'updated';
     }
-    return 'skipped'
+    return 'skipped';
   }
 
   // Seed GLOBAL items (locked)
-  
-  // Rule #7a: Max consecutive night shifts = 3
-  // Business rule: No more than 3 consecutive night shifts (EEE max)
-  await upsertItem(coreGlobal.id, 'max_consecutive_nights', {
-    label: 'Max Consecutive Night Shifts (3)',
+
+  // Rule #7a: Max consecutive work shifts = 3 (applies to ALL work states: day and night)
+  // Business rule: No more than 3 consecutive shifts of any type (777, EEE, etc.)
+  await upsertItem(coreGlobal.id, 'max_consecutive', {
+    label: 'Max Consecutive Shifts (3)',
     type: 'nurse_safety',
     value: {
       limit: 3,
-      target_state: 3, // APN night state
+      // Apply to all non-OFF states (day and night)
+      // Solver will check consecutive occurrences of target_state
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },
     locked: true,
-  })
+  });
 
   // Rule #7b: Min consecutive night shifts = 2
   // Business rule: No isolated single night shifts (E alone not allowed, must be EE or EEE)
@@ -770,19 +1106,19 @@ async function main() {
     label: 'Min Consecutive Night Shifts (2)',
     type: 'nurse_safety',
     value: {
-      limit: 2,         // Minimum 2 consecutive nights per block (same key as max for consistency)
-      target_state: 2,  // 7E night state (E=2); mapper will use max state dynamically
+      limit: 2, // Minimum 2 consecutive nights per block (same key as max for consistency)
+      target_state: 2, // 7E night state (E=2); mapper will use max state dynamically
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },
     locked: true,
-  })
+  });
 
   await upsertItem(coreGlobal.id, 'night_to_day_block', {
     label: 'Block Night→Day Immediate Transition',
     type: 'nurse_safety',
     value: { enabled: true },
     locked: true,
-  })
+  });
 
   // Rule #7c: Post-night rest - 2 days off after night block before any shift
   // Business rule: After finishing a night block (of any length), must have at least 2 full days off
@@ -794,11 +1130,11 @@ async function main() {
     type: 'nurse_safety',
     value: {
       enabled: true,
-      rest_days: 2,     // Require 2 days rest after any night block ends
-      target_state: 2,  // 7E night state (E=2); will fallback for APN
+      rest_days: 2, // Require 2 days rest after any night block ends
+      target_state: 2, // 7E night state (E=2); will fallback for APN
     },
     locked: true,
-  })
+  });
 
   // Rule #7d: Night block gap - 1 week (7 days) between night blocks
   // Business rule: After a night block ends, at least 7 days before starting another night block
@@ -809,12 +1145,12 @@ async function main() {
     type: 'nurse_safety',
     value: {
       enabled: true,
-      min_gap_days: 7,  // Minimum 7 days between night blocks
-      target_state: 2,  // 7E night state (E=2); mapper will use max state dynamically
+      min_gap_days: 7, // Minimum 7 days between night blocks
+      target_state: 2, // 7E night state (E=2); mapper will use max state dynamically
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },
     locked: true,
-  })
+  });
 
   // Rule #5: Night shift distribution - 3 to 6 nights per person per month
   // With 14 staff, 2 per night × 30 days = 60 nights total / 14 = ~4.3 avg
@@ -827,11 +1163,11 @@ async function main() {
       enabled: true,
       min_nights: 3,
       max_nights: 6,
-      target_state: 2,  // 7E night state (E=2); mapper will use max state dynamically
+      target_state: 2, // 7E night state (E=2); mapper will use max state dynamically
       time_slots: Array.from({ length: 30 }, (_, i) => i),
     },
     locked: false,
-  })
+  });
 
   // NOTE: Rule #9 (Balance dayoff monthly) is a PLACEHOLDER
   // Days off are determined by coverage requirements - the solver assigns OFF state
@@ -848,18 +1184,18 @@ async function main() {
       // Weights by day of week (0=Sun, 1=Mon, ..., 6=Sat)
       // Exclude weekends (weight = 0), weekdays = 1
       day_weights: {
-        0: 0,  // Sunday - exclude
-        1: 1,  // Monday
-        2: 1,  // Tuesday
-        3: 1,  // Wednesday
-        4: 1,  // Thursday
-        5: 1,  // Friday
-        6: 0,  // Saturday - exclude
+        0: 0, // Sunday - exclude
+        1: 1, // Monday
+        2: 1, // Tuesday
+        3: 1, // Wednesday
+        4: 1, // Thursday
+        5: 1, // Friday
+        6: 0, // Saturday - exclude
       },
-      penalty_weight: 100,  // Per unit of soft constraint violation
+      penalty_weight: 100, // Per unit of soft constraint violation
     },
     locked: false,
-  })
+  });
 
   // NOTE: Total shift cap is now dynamically derived from shift_type_config + shift_definition
   // The min/max hours per month from ShiftTypeConfig is used with the average shift duration
@@ -871,7 +1207,7 @@ async function main() {
     type: 'coverage',
     value: { min: 3, target_state: 1 },
     locked: false,
-  })
+  });
 
   // NOTE: 7E-specific coverage constraints (day==4, night==2, female IC) are now
   // managed via the Constraint table, not system config. This avoids duplication
@@ -879,13 +1215,13 @@ async function main() {
   // Removed: seven_e_day_coverage, seven_e_night_coverage, seven_e_female_ic_day,
   //          seven_e_female_ic_night, seven_e_block_transition
 
-  console.log('✅ Seeded system configuration groups and items (upserted)')
+  console.log('✅ Seeded system configuration groups and items (upserted)');
 
   // ============================================================================
   // Seed Public Holidays (FN/ADM/LVE/001)
   // Hong Kong Public Holidays for 2025 and 2026
   // ============================================================================
-  
+
   const publicHolidays2025 = [
     { date: '2025-01-01', name: "New Year's Day" },
     { date: '2025-01-29', name: 'Lunar New Year Day 1' },
@@ -905,7 +1241,7 @@ async function main() {
     { date: '2025-10-29', name: 'Chung Yeung Festival' },
     { date: '2025-12-25', name: 'Christmas Day' },
     { date: '2025-12-26', name: 'Day after Christmas' },
-  ]
+  ];
 
   const publicHolidays2026 = [
     { date: '2026-01-01', name: "New Year's Day" },
@@ -926,11 +1262,11 @@ async function main() {
     { date: '2026-10-18', name: 'Chung Yeung Festival (substitute)' },
     { date: '2026-12-25', name: 'Christmas Day' },
     { date: '2026-12-26', name: 'Day after Christmas' },
-  ]
+  ];
 
   // Upsert public holidays (avoid duplicates on re-seed)
   for (const holiday of publicHolidays2025) {
-    const holidayDate = new Date(holiday.date + 'T00:00:00Z')
+    const holidayDate = new Date(holiday.date + 'T00:00:00Z');
     await prisma.publicHoliday.upsert({
       where: { date: holidayDate },
       update: { name: holiday.name },
@@ -940,11 +1276,11 @@ async function main() {
         year: 2025,
         isRecurring: false,
       },
-    })
+    });
   }
 
   for (const holiday of publicHolidays2026) {
-    const holidayDate = new Date(holiday.date + 'T00:00:00Z')
+    const holidayDate = new Date(holiday.date + 'T00:00:00Z');
     await prisma.publicHoliday.upsert({
       where: { date: holidayDate },
       update: { name: holiday.name },
@@ -954,20 +1290,20 @@ async function main() {
         year: 2026,
         isRecurring: false,
       },
-    })
+    });
   }
 
-  console.log('✅ Seeded public holidays for 2025 and 2026')
+  console.log('✅ Seeded public holidays for 2025 and 2026');
 
-  console.log('🎉 Seeding complete!')
+  console.log('🎉 Seeding complete!');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seeding failed:', e)
-    process.exit(1)
+    console.error('❌ Seeding failed:', e);
+    process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect()
-    await pool.end()
-  })
+    await prisma.$disconnect();
+    await pool.end();
+  });

@@ -1,8 +1,16 @@
-import { Navbar, Hero, Features, AdminDemo, Testimonials, Pricing, Footer } from '@/components/landing'
+import {
+  Navbar,
+  Hero,
+  Features,
+  AdminDemo,
+  Testimonials,
+  Pricing,
+  Footer,
+} from '@/components/landing';
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-white">
+    <main className='min-h-screen bg-white'>
       <Navbar />
       <Hero />
       <Features />
@@ -11,5 +19,5 @@ export default function LandingPage() {
       <Pricing />
       <Footer />
     </main>
-  )
+  );
 }

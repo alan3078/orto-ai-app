@@ -1,12 +1,12 @@
-'use server'
+'use server';
 
-import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
-import { revalidatePath } from 'next/cache'
-import { auth } from '@/lib/auth'
-import { isSuperAdmin } from '@/lib/permissions'
-import { UserRole } from '@prisma/client'
-import type { LeaveType, LeaveStatus } from '@/lib/leave.types'
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+import { revalidatePath } from 'next/cache';
+import { auth } from '@/lib/auth';
+import { isSuperAdmin } from '@/lib/permissions';
+import { UserRole } from '@prisma/client';
+import type { LeaveType, LeaveStatus } from '@/lib/leave.types';
 
 /**
  * Create a new leave record
@@ -14,37 +14,37 @@ import type { LeaveType, LeaveStatus } from '@/lib/leave.types'
  * Non-admin users can only create leave for themselves
  */
 export async function createLeaveAction(params: {
-  staffId: string
-  startDate: string
-  endDate: string
-  leaveType: LeaveType
-  status?: LeaveStatus
-  notes?: string
+  staffId: string;
+  startDate: string;
+  endDate: string;
+  leaveType: LeaveType;
+  status?: LeaveStatus;
+  notes?: string;
 }) {
   try {
-    const session = await auth()
+    const session = await auth();
     if (!session?.user) {
-      return { success: false as const, error: 'Unauthorized' }
+      return { success: false as const, error: 'Unauthorized' };
     }
 
-    const { staffId, startDate, endDate, leaveType, status = 'APPROVED', notes } = params
-    const userIsSuperAdmin = isSuperAdmin(session.user.role as UserRole)
+    const { staffId, startDate, endDate, leaveType, status = 'APPROVED', notes } = params;
+    const userIsSuperAdmin = isSuperAdmin(session.user.role as UserRole);
 
     // Non-super-admin users can only create leave for themselves
     if (!userIsSuperAdmin && session.user.staffId !== staffId) {
-      return { 
-        success: false as const, 
-        error: 'You can only create leave for yourself' 
-      }
+      return {
+        success: false as const,
+        error: 'You can only create leave for yourself',
+      };
     }
 
     // Validate staff exists
     const staff = await prisma.staff.findUnique({
       where: { id: staffId },
       select: { id: true, visibleId: true },
-    })
+    });
     if (!staff) {
-      return { success: false as const, error: 'Staff member not found' }
+      return { success: false as const, error: 'Staff member not found' };
     }
 
     // Create leave record
@@ -64,18 +64,18 @@ export async function createLeaveAction(params: {
           },
         },
       },
-    })
+    });
 
-    revalidatePath('/admin/leaves')
-    revalidatePath('/admin/roster-management')
+    revalidatePath('/admin/leaves');
+    revalidatePath('/admin/roster-management');
 
-    return { success: true as const, leave }
+    return { success: true as const, leave };
   } catch (error) {
-    console.error('Create leave error:', error)
+    console.error('Create leave error:', error);
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Failed to create leave',
-    }
+    };
   }
 }
 
@@ -83,35 +83,35 @@ export async function createLeaveAction(params: {
  * Get all leaves for a date range
  */
 export async function getLeavesAction(params: {
-  startDate?: string
-  endDate?: string
-  staffId?: string
-  leaveType?: LeaveType
-  status?: LeaveStatus
+  startDate?: string;
+  endDate?: string;
+  staffId?: string;
+  leaveType?: LeaveType;
+  status?: LeaveStatus;
 }) {
   try {
-    const { startDate, endDate, staffId, leaveType, status } = params
+    const { startDate, endDate, staffId, leaveType, status } = params;
 
-    const where: Prisma.LeaveWhereInput = {}
+    const where: Prisma.LeaveWhereInput = {};
 
     // Filter by date range (leaves that overlap with the range)
     if (startDate && endDate) {
       where.AND = [
         { startDate: { lte: new Date(endDate) } },
         { endDate: { gte: new Date(startDate) } },
-      ]
+      ];
     }
 
     if (staffId) {
-      where.staffId = staffId
+      where.staffId = staffId;
     }
 
     if (leaveType) {
-      where.leaveType = leaveType
+      where.leaveType = leaveType;
     }
 
     if (status) {
-      where.status = status
+      where.status = status;
     }
 
     const leaves = await prisma.leave.findMany({
@@ -124,16 +124,16 @@ export async function getLeavesAction(params: {
         },
       },
       orderBy: [{ startDate: 'asc' }, { staff: { visibleId: 'asc' } }],
-    })
+    });
 
-    return { success: true as const, leaves }
+    return { success: true as const, leaves };
   } catch (error) {
-    console.error('Get leaves error:', error)
+    console.error('Get leaves error:', error);
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Failed to fetch leaves',
       leaves: [],
-    }
+    };
   }
 }
 
@@ -143,46 +143,46 @@ export async function getLeavesAction(params: {
  * Non-admin users can only update their own leave
  */
 export async function updateLeaveAction(params: {
-  id: string
-  startDate?: string
-  endDate?: string
-  leaveType?: LeaveType
-  status?: LeaveStatus
-  notes?: string
+  id: string;
+  startDate?: string;
+  endDate?: string;
+  leaveType?: LeaveType;
+  status?: LeaveStatus;
+  notes?: string;
 }) {
   try {
-    const session = await auth()
+    const session = await auth();
     if (!session?.user) {
-      return { success: false as const, error: 'Unauthorized' }
+      return { success: false as const, error: 'Unauthorized' };
     }
 
-    const { id, startDate, endDate, leaveType, status, notes } = params
-    const userIsSuperAdmin = isSuperAdmin(session.user.role as UserRole)
+    const { id, startDate, endDate, leaveType, status, notes } = params;
+    const userIsSuperAdmin = isSuperAdmin(session.user.role as UserRole);
 
     // Get the existing leave to check ownership
     const existingLeave = await prisma.leave.findUnique({
       where: { id },
       select: { staffId: true },
-    })
+    });
 
     if (!existingLeave) {
-      return { success: false as const, error: 'Leave not found' }
+      return { success: false as const, error: 'Leave not found' };
     }
 
     // Non-super-admin users can only update their own leave
     if (!userIsSuperAdmin && session.user.staffId !== existingLeave.staffId) {
-      return { 
-        success: false as const, 
-        error: 'You can only update your own leave' 
-      }
+      return {
+        success: false as const,
+        error: 'You can only update your own leave',
+      };
     }
 
-    const data: Prisma.LeaveUpdateInput = {}
-    if (startDate) data.startDate = new Date(startDate)
-    if (endDate) data.endDate = new Date(endDate)
-    if (leaveType) data.leaveType = leaveType
-    if (status) data.status = status
-    if (notes !== undefined) data.notes = notes
+    const data: Prisma.LeaveUpdateInput = {};
+    if (startDate) data.startDate = new Date(startDate);
+    if (endDate) data.endDate = new Date(endDate);
+    if (leaveType) data.leaveType = leaveType;
+    if (status) data.status = status;
+    if (notes !== undefined) data.notes = notes;
 
     const leave = await prisma.leave.update({
       where: { id },
@@ -194,18 +194,18 @@ export async function updateLeaveAction(params: {
           },
         },
       },
-    })
+    });
 
-    revalidatePath('/admin/leaves')
-    revalidatePath('/admin/roster-management')
+    revalidatePath('/admin/leaves');
+    revalidatePath('/admin/roster-management');
 
-    return { success: true as const, leave }
+    return { success: true as const, leave };
   } catch (error) {
-    console.error('Update leave error:', error)
+    console.error('Update leave error:', error);
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Failed to update leave',
-    }
+    };
   }
 }
 
@@ -216,55 +216,52 @@ export async function updateLeaveAction(params: {
  */
 export async function deleteLeaveAction(id: string) {
   try {
-    const session = await auth()
+    const session = await auth();
     if (!session?.user) {
-      return { success: false as const, error: 'Unauthorized' }
+      return { success: false as const, error: 'Unauthorized' };
     }
 
-    const userIsSuperAdmin = isSuperAdmin(session.user.role as UserRole)
+    const userIsSuperAdmin = isSuperAdmin(session.user.role as UserRole);
 
     // Get the existing leave to check ownership
     const existingLeave = await prisma.leave.findUnique({
       where: { id },
       select: { staffId: true },
-    })
+    });
 
     if (!existingLeave) {
-      return { success: false as const, error: 'Leave not found' }
+      return { success: false as const, error: 'Leave not found' };
     }
 
     // Non-super-admin users can only delete their own leave
     if (!userIsSuperAdmin && session.user.staffId !== existingLeave.staffId) {
-      return { 
-        success: false as const, 
-        error: 'You can only delete your own leave' 
-      }
+      return {
+        success: false as const,
+        error: 'You can only delete your own leave',
+      };
     }
 
-    await prisma.leave.delete({ where: { id } })
+    await prisma.leave.delete({ where: { id } });
 
-    revalidatePath('/admin/leaves')
-    revalidatePath('/admin/roster-management')
+    revalidatePath('/admin/leaves');
+    revalidatePath('/admin/roster-management');
 
-    return { success: true as const }
+    return { success: true as const };
   } catch (error) {
-    console.error('Delete leave error:', error)
+    console.error('Delete leave error:', error);
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Failed to delete leave',
-    }
+    };
   }
 }
 
 /**
  * Get public holidays for a date range
  */
-export async function getPublicHolidaysAction(params: {
-  startDate: string
-  endDate: string
-}) {
+export async function getPublicHolidaysAction(params: { startDate: string; endDate: string }) {
   try {
-    const { startDate, endDate } = params
+    const { startDate, endDate } = params;
 
     const holidays = await prisma.publicHoliday.findMany({
       where: {
@@ -274,16 +271,16 @@ export async function getPublicHolidaysAction(params: {
         },
       },
       orderBy: { date: 'asc' },
-    })
+    });
 
-    return { success: true as const, holidays }
+    return { success: true as const, holidays };
   } catch (error) {
-    console.error('Get public holidays error:', error)
+    console.error('Get public holidays error:', error);
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Failed to fetch public holidays',
       holidays: [],
-    }
+    };
   }
 }
 
@@ -292,29 +289,29 @@ export async function getPublicHolidaysAction(params: {
  */
 export async function isPublicHolidayAction(dateStr: string) {
   try {
-    const date = new Date(dateStr)
+    const date = new Date(dateStr);
     // Normalize to start of day UTC
-    const normalizedDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    const normalizedDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 
     const holiday = await prisma.publicHoliday.findFirst({
       where: {
         date: normalizedDate,
       },
-    })
+    });
 
     return {
       success: true as const,
       isHoliday: !!holiday,
       holiday: holiday || null,
-    }
+    };
   } catch (error) {
-    console.error('Check public holiday error:', error)
+    console.error('Check public holiday error:', error);
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Failed to check public holiday',
       isHoliday: false,
       holiday: null,
-    }
+    };
   }
 }
 
@@ -323,11 +320,19 @@ export async function isPublicHolidayAction(dateStr: string) {
  * This function generates constraint data for leaves to be treated as fixed OFF
  */
 export async function getLeaveConstraintsForRoster(params: {
-  startDate: Date
-  endDate: Date
-  staffVisibleIds: string[]
-}): Promise<Array<{ type: 'point'; resource: string; time_slot: number; state: 0; is_required: true }>> {
-  const { startDate, endDate, staffVisibleIds } = params
+  startDate: Date;
+  endDate: Date;
+  staffVisibleIds: string[];
+}): Promise<
+  Array<{
+    type: 'point';
+    resource: string;
+    time_slot: number;
+    state: 0;
+    is_required: true;
+  }>
+> {
+  const { startDate, endDate, staffVisibleIds } = params;
 
   // Fetch all approved leaves that overlap with the roster period
   const leaves = await prisma.leave.findMany({
@@ -344,20 +349,28 @@ export async function getLeaveConstraintsForRoster(params: {
     include: {
       staff: { select: { visibleId: true } },
     },
-  })
+  });
 
-  const constraints: Array<{ type: 'point'; resource: string; time_slot: number; state: 0; is_required: true }> = []
+  const constraints: Array<{
+    type: 'point';
+    resource: string;
+    time_slot: number;
+    state: 0;
+    is_required: true;
+  }> = [];
 
   // Generate point constraints for each leave day
   for (const leave of leaves) {
-    const leaveStart = new Date(Math.max(leave.startDate.getTime(), startDate.getTime()))
-    const leaveEnd = new Date(Math.min(leave.endDate.getTime(), endDate.getTime()))
+    const leaveStart = new Date(Math.max(leave.startDate.getTime(), startDate.getTime()));
+    const leaveEnd = new Date(Math.min(leave.endDate.getTime(), endDate.getTime()));
 
     // Iterate through each day of the leave within the roster period
-    let currentDate = new Date(leaveStart)
+    let currentDate = new Date(leaveStart);
     while (currentDate <= leaveEnd) {
       // Calculate time slot (days from roster start)
-      const timeSlot = Math.floor((currentDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))
+      const timeSlot = Math.floor(
+        (currentDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)
+      );
 
       if (timeSlot >= 0) {
         constraints.push({
@@ -366,15 +379,15 @@ export async function getLeaveConstraintsForRoster(params: {
           time_slot: timeSlot,
           state: 0, // OFF state
           is_required: true, // Hard constraint - leaves cannot be overridden
-        })
+        });
       }
 
       // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1)
+      currentDate.setDate(currentDate.getDate() + 1);
     }
   }
 
-  return constraints
+  return constraints;
 }
 
 /**
@@ -382,10 +395,10 @@ export async function getLeaveConstraintsForRoster(params: {
  * Returns a map of staffId-date to leave info
  */
 export async function getLeavesForRosterDisplay(params: {
-  startDate: Date
-  endDate: Date
+  startDate: Date;
+  endDate: Date;
 }): Promise<Map<string, { leaveType: LeaveType; notes: string | null }>> {
-  const { startDate, endDate } = params
+  const { startDate, endDate } = params;
 
   const leaves = await prisma.leave.findMany({
     where: {
@@ -396,25 +409,25 @@ export async function getLeavesForRosterDisplay(params: {
     include: {
       staff: { select: { id: true, visibleId: true } },
     },
-  })
+  });
 
-  const leaveMap = new Map<string, { leaveType: LeaveType; notes: string | null }>()
+  const leaveMap = new Map<string, { leaveType: LeaveType; notes: string | null }>();
 
   for (const leave of leaves) {
-    const leaveStart = new Date(Math.max(leave.startDate.getTime(), startDate.getTime()))
-    const leaveEnd = new Date(Math.min(leave.endDate.getTime(), endDate.getTime()))
+    const leaveStart = new Date(Math.max(leave.startDate.getTime(), startDate.getTime()));
+    const leaveEnd = new Date(Math.min(leave.endDate.getTime(), endDate.getTime()));
 
-    let currentDate = new Date(leaveStart)
+    let currentDate = new Date(leaveStart);
     while (currentDate <= leaveEnd) {
-      const dateKey = currentDate.toISOString().split('T')[0]
-      const key = `${leave.staffId}-${dateKey}`
+      const dateKey = currentDate.toISOString().split('T')[0];
+      const key = `${leave.staffId}-${dateKey}`;
       leaveMap.set(key, {
         leaveType: leave.leaveType as LeaveType,
         notes: leave.notes,
-      })
-      currentDate.setDate(currentDate.getDate() + 1)
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
     }
   }
 
-  return leaveMap
+  return leaveMap;
 }

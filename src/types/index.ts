@@ -12,10 +12,10 @@ export {
   SolverStatus,
   ValidationStatus,
   ComparisonOperator,
-} from './enums'
+} from './enums';
 
 // Staff types
-export type { Role, StaffRole, StaffGroup, User, Staff } from './staff'
+export type { Role, StaffRole, StaffGroup, User, Staff } from './staff';
 
 // Roster types
 export type {
@@ -29,4 +29,4 @@ export type {
   RosterWithShiftsByStaff,
   Constraint,
   SystemConstraint,
-} from './roster'
+} from './roster';

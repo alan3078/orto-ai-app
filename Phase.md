@@ -1,24 +1,27 @@
 Recommended Start Sequence
 
 ## Phase 1: Engine MVP ✅ COMPLETED
+
 - [x] FN/BE/ENG/001-01: Initialize Python project with uv
 - [x] FN/BE/ENG/001-02: Define Pydantic models (7 constraint types)
 - [x] FN/BE/ENG/001-03: Implement OR-Tools variable initialization
 - [x] FN/BE/ENG/001-04: Add constraint parsers (point, vertical_sum, horizontal_sum, sliding_window, pattern_block, attribute_vertical_sum, resource_state_count)
 - [x] FN/BE/ENG/001-05: Create FastAPI endpoint (/api/v1/solve, /health)
 - [x] FN/BE/ENG/001-06: Write unit tests (15 comprehensive tests)
-**Status**: Production-ready solver engine with 7 constraint types
+      **Status**: Production-ready solver engine with 7 constraint types
 
 ## Phase 2: Web Foundation ✅ COMPLETED
+
 - [x] Initialize Next.js 15 + TypeScript
 - [x] Setup PostgreSQL Docker container
 - [x] Configure Prisma with complete schema (11 models, 3 enums)
 - [x] Initialize shadcn/ui (18 components)
 - [x] Create database seed script (13 staff, roles, shifts, constraints)
 - [x] Apply migrations
-**Status**: Production-ready web foundation
+      **Status**: Production-ready web foundation
 
 ## Phase 3: Integration ✅ 95% COMPLETED
+
 - [x] Create SolverIntegrationService (solver-integration.service.ts)
 - [x] Build admin UI to trigger solver (RosterControls, generate-roster.action.ts)
 - [x] Display results in roster grid (RosterGrid with polling, state badges)
@@ -27,9 +30,10 @@ Recommended Start Sequence
 - [x] Build staff/constraint/role/shift management UIs
 - [ ] Complete end-to-end testing
 - [ ] Update documentation (.env.example, README)
-**Status**: Fully functional and in active use
+      **Status**: Fully functional and in active use
 
 ## Phase 4: Quality Assurance Layer ✅ COMPLETED
+
 - [x] FN/BE/ENG/002-01: Define validation schemas (ValidateRequest, ValidateResponse)
 - [x] FN/BE/ENG/002-02: Implement validator service core logic
 - [x] FN/BE/ENG/002-03: Implement point & sum constraint validators
@@ -45,9 +49,10 @@ Recommended Start Sequence
 - [x] FN/BE/ENG/002-13: Integrate validation button in Test Roster Detail page
 - [x] FN/BE/ENG/002-14: End-to-end testing (ready for user testing)
 - [x] FN/BE/ENG/002-15: Documentation and cleanup
-**Status**: Complete roster validation system with "Check Rules" button on roster pages, detailed violation reporting, and 23 passing unit tests
+      **Status**: Complete roster validation system with "Check Rules" button on roster pages, detailed violation reporting, and 23 passing unit tests
 
 ## Completed JIRA Tickets
+
 - ✅ FN/BE/ENG/001: Core Universal Solver
 - ✅ FN/FE/WEB/001: Web Foundation Setup
 - ✅ FN/ADM/STF/007: Extended Staff & Shift Definitions
@@ -55,6 +60,7 @@ Recommended Start Sequence
 - 🟡 FN/FE/UI/004: MVP Roster Dashboard (90% - testing pending)
 
 ## Next Steps
+
 - **Current Focus**: FN/BE/ENG/002 (Roster Validator) - 4-6 days
 - Run end-to-end integration tests
 - Document environment setup and deployment

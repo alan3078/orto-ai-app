@@ -8,10 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PlayCircle, Download, Loader2, CheckCircle } from 'lucide-react';
+import { BasicModal } from '@/components/ui/basic-modal';
+import { PlayCircle, Download, Loader2, CheckCircle, Trash2 } from 'lucide-react';
 import { useStaff } from '../hooks/use-staff';
 import { useConstraints } from '../hooks/use-constraints';
-import { useGenerateRoster, useRoster } from '../hooks/use-roster';
+import { useGenerateRoster, useRoster, useDeleteRoster } from '../hooks/use-roster';
 import {
   formatMonthDisplay,
   getMonthStartNoon,
@@ -24,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { ShiftType } from '@/types/enums';
 import type { Staff } from '@/types/staff';
 import type { Constraint } from '@/types/roster';
+import { useState } from 'react';
 
 interface RosterControlsProps {
   selectedMonth: string;
@@ -43,7 +45,9 @@ export function RosterControls({
   const { data: staff } = useStaff();
   const { data: constraints } = useConstraints();
   const generateRoster = useGenerateRoster();
+  const deleteRoster = useDeleteRoster();
   const { data: roster } = useRoster({ month: selectedMonth });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Filter staff by selected staff group
   const filteredStaff = staff?.filter((s: Staff) => {
@@ -74,9 +78,25 @@ export function RosterControls({
         startDate: startDate.toISOString(),
         timeSlots,
         staffIds: filteredStaff.map((s: Staff) => s.id),
-        constraintIds: (constraints || []).filter((c: Constraint) => c.isActive).map((c: Constraint) => c.id),
+        constraintIds: (constraints || [])
+          .filter((c: Constraint) => c.isActive)
+          .map((c: Constraint) => c.id),
         shiftType,
       });
+    } catch (error) {
+      // Error handled by hook
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!roster?.id) return;
+
+    try {
+      await deleteRoster.mutateAsync({
+        rosterId: roster.id,
+        month: selectedMonth,
+      });
+      setDeleteDialogOpen(false);
     } catch (error) {
       // Error handled by hook
     }
@@ -86,20 +106,14 @@ export function RosterControls({
     <div className='flex flex-col gap-4 mb-6'>
       <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
         <div className='flex items-center gap-4'>
-          <h2 className='text-2xl font-bold'>
-            Roster: {formatMonthDisplay(selectedMonth)}
-          </h2>
-          <Select
-            value={selectedMonth}
-            onValueChange={onMonthChange}>
+          <h2 className='text-2xl font-bold'>Roster: {formatMonthDisplay(selectedMonth)}</h2>
+          <Select value={selectedMonth} onValueChange={onMonthChange}>
             <SelectTrigger className='w-[180px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {months.map((month) => (
-                <SelectItem
-                  key={month.value}
-                  value={month.value}>
+                <SelectItem key={month.value} value={month.value}>
                   {month.label}
                 </SelectItem>
               ))}
@@ -110,7 +124,8 @@ export function RosterControls({
         <div className='flex gap-2'>
           <Button
             onClick={handleGenerate}
-            disabled={generateRoster.isPending || !filteredStaff || filteredStaff.length === 0}>
+            disabled={generateRoster.isPending || !filteredStaff || filteredStaff.length === 0}
+          >
             {generateRoster.isPending ? (
               <>
                 <Loader2 className='mr-2 h-4 w-4 animate-spin' />
@@ -124,9 +139,34 @@ export function RosterControls({
             )}
           </Button>
 
-          <Button
-            variant='outline'
-            disabled>
+          {roster?.id && (
+            <>
+              <Button
+                variant='destructive'
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={deleteRoster.isPending}
+              >
+                <Trash2 className='mr-2 h-4 w-4' />
+                Delete
+              </Button>
+              <BasicModal
+                open={deleteDialogOpen}
+                onOpenChange={setDeleteDialogOpen}
+                title='Delete Roster'
+                description={`Are you sure you want to delete the roster for ${formatMonthDisplay(
+                  selectedMonth
+                )}? This will permanently remove all shift assignments for this month.`}
+                confirmText='Delete Roster'
+                cancelText='Cancel'
+                variant='destructive'
+                loading={deleteRoster.isPending}
+                onConfirm={handleDelete}
+                onCancel={() => setDeleteDialogOpen(false)}
+              />
+            </>
+          )}
+
+          <Button variant='outline' disabled>
             <Download className='mr-2 h-4 w-4' />
             Export CSV
           </Button>
@@ -135,17 +175,14 @@ export function RosterControls({
 
       <div className='flex items-center gap-4'>
         <div className='flex items-center gap-2'>
-          <Label
-            htmlFor='shift-type'
-            className='text-sm font-medium'>
+          <Label htmlFor='shift-type' className='text-sm font-medium'>
             Shift Type:
           </Label>
           <Select
             value={shiftType}
-            onValueChange={(value) => onShiftTypeChange(value as ShiftType)}>
-            <SelectTrigger
-              id='shift-type'
-              className='w-[200px]'>
+            onValueChange={(value) => onShiftTypeChange(value as ShiftType)}
+          >
+            <SelectTrigger id='shift-type' className='w-[200px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

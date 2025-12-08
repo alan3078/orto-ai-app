@@ -1,8 +1,8 @@
-import { SystemConfigPage } from './system-config-page'
-import { getSystemConfigGroupsAction } from './actions'
+import { SystemConfigPage } from './system-config-page';
+import { getSystemConfigGroupsAction } from './actions';
 
 export default async function ConfigPage() {
-  const { groups } = await getSystemConfigGroupsAction()
+  const { groups } = await getSystemConfigGroupsAction();
 
-  return <SystemConfigPage initialGroups={groups} />
+  return <SystemConfigPage initialGroups={groups} />;
 }

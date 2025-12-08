@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/components/ui/dialog';
 import {
   Form,
   FormControl,
@@ -19,9 +19,9 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const shiftDefinitionSchema = z.object({
   code: z
@@ -39,25 +39,21 @@ const shiftDefinitionSchema = z.object({
     .int('Duration must be an integer')
     .min(1, 'Duration must be at least 1 minute')
     .max(1440, 'Duration must be 1440 minutes or less (24 hours)'),
-})
+});
 
-type ShiftDefinitionFormData = z.infer<typeof shiftDefinitionSchema>
+type ShiftDefinitionFormData = z.infer<typeof shiftDefinitionSchema>;
 
 interface ShiftDefinitionDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   shift?: {
-    id: string
-    code: string
-    startMinutes: number
-    durationMinutes: number
-  } | null
-  onSubmit: (data: {
-    code: string
-    startMinutes: number
-    durationMinutes: number
-  }) => void
-  isPending: boolean
+    id: string;
+    code: string;
+    startMinutes: number;
+    durationMinutes: number;
+  } | null;
+  onSubmit: (data: { code: string; startMinutes: number; durationMinutes: number }) => void;
+  isPending: boolean;
 }
 
 export function ShiftDefinitionDialog({
@@ -74,7 +70,7 @@ export function ShiftDefinitionDialog({
       startMinutes: 0,
       durationMinutes: 480,
     },
-  })
+  });
 
   useEffect(() => {
     if (open && shift) {
@@ -82,27 +78,25 @@ export function ShiftDefinitionDialog({
         code: shift.code,
         startMinutes: shift.startMinutes,
         durationMinutes: shift.durationMinutes,
-      })
+      });
     } else if (open && !shift) {
       form.reset({
         code: '',
         startMinutes: 0,
         durationMinutes: 480,
-      })
+      });
     }
-  }, [open, shift, form])
+  }, [open, shift, form]);
 
   const handleSubmit = (data: ShiftDefinitionFormData) => {
-    onSubmit(data)
-  }
+    onSubmit(data);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {shift ? 'Edit Shift Definition' : 'Create Shift Definition'}
-          </DialogTitle>
+          <DialogTitle>{shift ? 'Edit Shift Definition' : 'Create Shift Definition'}</DialogTitle>
           <DialogDescription>
             {shift
               ? 'Update the shift code, start time, or duration.'
@@ -111,16 +105,16 @@ export function ShiftDefinitionDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
             <FormField
               control={form.control}
-              name="code"
+              name='code'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Shift Code</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="N"
+                      placeholder='N'
                       {...field}
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                       maxLength={4}
@@ -136,26 +130,22 @@ export function ShiftDefinitionDialog({
 
             <FormField
               control={form.control}
-              name="startMinutes"
+              name='startMinutes'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Start Time (minutes from midnight)</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
-                      placeholder="1380"
+                      type='number'
+                      placeholder='1380'
                       {...field}
                       onChange={(e) =>
-                        field.onChange(
-                          e.target.value ? parseInt(e.target.value) : undefined
-                        )
+                        field.onChange(e.target.value ? parseInt(e.target.value) : undefined)
                       }
                       value={field.value ?? ''}
                     />
                   </FormControl>
-                  <FormDescription>
-                    0-1439 (e.g., 1380 = 23:00, 420 = 07:00)
-                  </FormDescription>
+                  <FormDescription>0-1439 (e.g., 1380 = 23:00, 420 = 07:00)</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -163,41 +153,37 @@ export function ShiftDefinitionDialog({
 
             <FormField
               control={form.control}
-              name="durationMinutes"
+              name='durationMinutes'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Duration (minutes)</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
-                      placeholder="480"
+                      type='number'
+                      placeholder='480'
                       {...field}
                       onChange={(e) =>
-                        field.onChange(
-                          e.target.value ? parseInt(e.target.value) : undefined
-                        )
+                        field.onChange(e.target.value ? parseInt(e.target.value) : undefined)
                       }
                       value={field.value ?? ''}
                     />
                   </FormControl>
-                  <FormDescription>
-                    1-1440 (e.g., 480 = 8 hours, 600 = 10 hours)
-                  </FormDescription>
+                  <FormDescription>1-1440 (e.g., 480 = 8 hours, 600 = 10 hours)</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="flex justify-end gap-2">
+            <div className='flex justify-end gap-2'>
               <Button
-                type="button"
-                variant="outline"
+                type='button'
+                variant='outline'
                 onClick={() => onOpenChange(false)}
                 disabled={isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type='submit' disabled={isPending}>
                 {isPending ? 'Saving...' : shift ? 'Update' : 'Create'}
               </Button>
             </div>
@@ -205,5 +191,5 @@ export function ShiftDefinitionDialog({
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

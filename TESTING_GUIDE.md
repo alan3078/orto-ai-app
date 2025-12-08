@@ -9,6 +9,7 @@ This guide shows you how to test the complete integration between Next.js and th
 ### 1. Prerequisites
 
 Make sure you have:
+
 - ✅ PostgreSQL running on localhost:5432
 - ✅ Database seeded with test data
 - ✅ Python solver engine running
@@ -58,6 +59,7 @@ You have **3 ways** to test the integration:
 5. View the generated roster with visual schedule grid
 
 **What you'll see**:
+
 - ✅ List of recent rosters with status badges
 - ✅ Detailed schedule view with color-coded shifts
 - ✅ Working (green ✓) vs Off (gray ✕) visualization
@@ -76,12 +78,14 @@ npx tsx scripts/test-solver-integration.ts
 ```
 
 **What it does**:
+
 1. Fetches staff and constraints from database
 2. Calls `SolverIntegrationService.generateRoster()`
 3. Displays results in terminal with ASCII visualization
 4. Verifies constraint satisfaction
 
 **Expected Output**:
+
 ```
 🧪 Testing Solver Integration Service
 ============================================================
@@ -169,6 +173,7 @@ export function RosterGeneratorForm() {
 ## What Gets Tested
 
 ### 1. Database Layer
+
 - ✅ Fetching active staff from `Staff` table
 - ✅ Fetching active constraints from `Constraint` table
 - ✅ Creating `Roster` record with SOLVING status
@@ -176,6 +181,7 @@ export function RosterGeneratorForm() {
 - ✅ Updating roster status to COMPLETED
 
 ### 2. Integration Service
+
 - ✅ Data transformation: Prisma models → Python API format
 - ✅ HTTP POST to Python engine
 - ✅ Response validation with Zod schemas
@@ -183,12 +189,14 @@ export function RosterGeneratorForm() {
 - ✅ Transaction rollback on errors
 
 ### 3. Solver Engine
+
 - ✅ Constraint satisfaction (point constraints)
 - ✅ Coverage requirements (vertical_sum constraints)
 - ✅ Optimal solution generation
 - ✅ INFEASIBLE scenario handling
 
 ### 4. End-to-End Flow
+
 ```
 User Form Submit
     ↓
@@ -225,6 +233,7 @@ npx prisma studio
 ```
 
 Navigate to:
+
 1. **Roster** table → Check status = "COMPLETED"
 2. **Shift** table → Should have 35 records (5 staff × 7 days)
 3. Filter shifts by rosterId to see one roster's data
@@ -271,6 +280,7 @@ npx tsx scripts/test-solver-integration.ts
 **Goal**: Test when no valid solution exists
 
 1. Add conflicting constraints to seed:
+
 ```typescript
 // In prisma/seed.ts, add:
 await prisma.constraint.create({
@@ -284,10 +294,11 @@ await prisma.constraint.create({
     },
     isActive: true,
   },
-})
+});
 ```
 
 2. Re-seed and test:
+
 ```bash
 npx prisma db seed
 npx tsx scripts/test-solver-integration.ts
@@ -303,6 +314,7 @@ npx tsx scripts/test-solver-integration.ts
 
 1. Stop Python engine (Ctrl+C in Terminal 1)
 2. Run test:
+
 ```bash
 npx tsx scripts/test-solver-integration.ts
 ```
@@ -316,12 +328,14 @@ npx tsx scripts/test-solver-integration.ts
 **Goal**: Test validation
 
 1. Clear staff table:
+
 ```bash
 npx prisma studio
 # Delete all staff records
 ```
 
 2. Run test:
+
 ```bash
 npx tsx scripts/test-solver-integration.ts
 ```
@@ -335,6 +349,7 @@ npx tsx scripts/test-solver-integration.ts
 ### Issue: "Property 'staff' does not exist on PrismaClient"
 
 **Solution**: Regenerate Prisma Client
+
 ```bash
 cd web
 npx prisma generate
@@ -346,6 +361,7 @@ npx prisma generate
 ### Issue: "fetch failed" or "ECONNREFUSED"
 
 **Solution**: Python engine not running
+
 ```bash
 # Terminal 1:
 cd engine
@@ -360,6 +376,7 @@ curl http://localhost:8000/api/v1/solve/health
 ### Issue: "No active staff members found"
 
 **Solution**: Database not seeded
+
 ```bash
 cd web
 npx prisma db seed
@@ -370,6 +387,7 @@ npx prisma db seed
 ### Issue: Form submits but nothing happens
 
 **Solution**: Check browser console and server logs
+
 ```bash
 # In browser: Open DevTools → Console
 # In terminal: Check Next.js server output for errors
@@ -381,16 +399,17 @@ npx prisma db seed
 
 Expected performance metrics:
 
-| Operation | Expected Time |
-|-----------|---------------|
-| Database fetch (staff + constraints) | < 50ms |
-| Build solver request | < 10ms |
-| HTTP POST to Python engine | 100-300ms |
-| Solver computation (7 days, 5 staff) | 50-200ms |
-| Save results to database | < 100ms |
-| **Total end-to-end** | **300-500ms** |
+| Operation                            | Expected Time |
+| ------------------------------------ | ------------- |
+| Database fetch (staff + constraints) | < 50ms        |
+| Build solver request                 | < 10ms        |
+| HTTP POST to Python engine           | 100-300ms     |
+| Solver computation (7 days, 5 staff) | 50-200ms      |
+| Save results to database             | < 100ms       |
+| **Total end-to-end**                 | **300-500ms** |
 
 If you see much longer times:
+
 - Check database connection pooling
 - Verify Python engine is running locally (not remote)
 - Check for network latency issues
@@ -418,6 +437,7 @@ After successful testing:
 Generates a new roster by calling the solver engine.
 
 **FormData fields**:
+
 - `name` (string): Roster name
 - `startDate` (string): ISO date string
 - `timeSlots` (string): Number of days (1-31)
@@ -444,16 +464,16 @@ Fetches a specific roster with all shifts and constraints.
 
 ## Files Reference
 
-| File | Purpose |
-|------|---------|
+| File                                              | Purpose                |
+| ------------------------------------------------- | ---------------------- |
 | `/web/src/services/solver-integration.service.ts` | Core integration logic |
-| `/web/src/app/actions/generate-roster.action.ts` | Next.js Server Actions |
-| `/web/src/lib/validations/solver.ts` | Zod validation schemas |
-| `/web/scripts/test-solver-integration.ts` | Standalone test script |
-| `/web/src/app/test-roster/page.tsx` | Web UI for testing |
-| `/web/src/app/test-roster/[id]/page.tsx` | Roster detail view |
-| `/web/prisma/schema.prisma` | Database models |
-| `/web/prisma/seed.ts` | Test data seeding |
+| `/web/src/app/actions/generate-roster.action.ts`  | Next.js Server Actions |
+| `/web/src/lib/validations/solver.ts`              | Zod validation schemas |
+| `/web/scripts/test-solver-integration.ts`         | Standalone test script |
+| `/web/src/app/test-roster/page.tsx`               | Web UI for testing     |
+| `/web/src/app/test-roster/[id]/page.tsx`          | Roster detail view     |
+| `/web/prisma/schema.prisma`                       | Database models        |
+| `/web/prisma/seed.ts`                             | Test data seeding      |
 
 ---
 

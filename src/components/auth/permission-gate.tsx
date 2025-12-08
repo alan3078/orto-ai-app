@@ -1,45 +1,45 @@
-'use client'
+'use client';
 
-import { ReactNode } from 'react'
-import { usePermission } from '@/providers/permission-provider'
-import { redirect } from 'next/navigation'
+import { ReactNode } from 'react';
+import { usePermission } from '@/providers/permission-provider';
+import { redirect } from 'next/navigation';
 
 interface PermissionGateProps {
-  children: ReactNode
+  children: ReactNode;
   /** Permission code to check (e.g., "staff:create") */
-  permission?: string
+  permission?: string;
   /** Module and action to check (alternative to permission code) */
-  module?: string
-  action?: string
+  module?: string;
+  action?: string;
   /** Only allow super admin */
-  superAdminOnly?: boolean
+  superAdminOnly?: boolean;
   /** Fallback content when permission denied (if not provided, renders nothing) */
-  fallback?: ReactNode
+  fallback?: ReactNode;
   /** Redirect path when permission denied (takes precedence over fallback) */
-  redirectTo?: string
+  redirectTo?: string;
 }
 
 /**
  * Component to conditionally render content based on permissions
- * 
+ *
  * @example
  * // Using permission code
  * <PermissionGate permission="staff:create">
  *   <AddStaffButton />
  * </PermissionGate>
- * 
+ *
  * @example
  * // Using module and action
  * <PermissionGate module="staff" action="update">
  *   <EditStaffButton />
  * </PermissionGate>
- * 
+ *
  * @example
  * // Only show for super admin
  * <PermissionGate superAdminOnly>
  *   <SystemSettings />
  * </PermissionGate>
- * 
+ *
  * @example
  * // Show fallback when no permission
  * <PermissionGate permission="reports:read" fallback={<p>No access</p>}>
@@ -55,26 +55,26 @@ export function PermissionGate({
   fallback = null,
   redirectTo,
 }: PermissionGateProps) {
-  const { hasPermission, can, isSuperAdmin } = usePermission()
+  const { hasPermission, can, isSuperAdmin } = usePermission();
 
-  let hasAccess = true
+  let hasAccess = true;
 
   if (superAdminOnly) {
-    hasAccess = isSuperAdmin
+    hasAccess = isSuperAdmin;
   } else if (permission) {
-    hasAccess = hasPermission(permission)
+    hasAccess = hasPermission(permission);
   } else if (module && action) {
-    hasAccess = can(module, action)
+    hasAccess = can(module, action);
   }
 
   if (!hasAccess) {
     if (redirectTo) {
-      redirect(redirectTo)
+      redirect(redirectTo);
     }
-    return <>{fallback}</>
+    return <>{fallback}</>;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }
 
 /**
@@ -87,51 +87,51 @@ export function RequirePermission({
   module,
   action,
 }: {
-  children: ReactNode
-  permission?: string
-  module?: string
-  action?: string
+  children: ReactNode;
+  permission?: string;
+  module?: string;
+  action?: string;
 }) {
-  const { hasPermission, can } = usePermission()
-  
-  let hasAccess = false
+  const { hasPermission, can } = usePermission();
+
+  let hasAccess = false;
   if (permission) {
-    hasAccess = hasPermission(permission)
+    hasAccess = hasPermission(permission);
   } else if (module && action) {
-    hasAccess = can(module, action)
+    hasAccess = can(module, action);
   }
-  
+
   if (!hasAccess) {
-    return null
+    return null;
   }
-  
-  return <>{children}</>
+
+  return <>{children}</>;
 }
 
 /**
  * Component to only show content to super admins
  */
 export function SuperAdminOnly({ children }: { children: ReactNode }) {
-  const { isSuperAdmin } = usePermission()
-  
+  const { isSuperAdmin } = usePermission();
+
   if (!isSuperAdmin) {
-    return null
+    return null;
   }
-  
-  return <>{children}</>
+
+  return <>{children}</>;
 }
 
 /**
  * Component to only show content to admins (ADMIN or SUPER_ADMIN)
  */
 export function AdminOnly({ children }: { children: ReactNode }) {
-  const { isAdmin } = usePermission()
-  
+  const { isAdmin } = usePermission();
+
   if (!isAdmin) {
-    return null
+    return null;
   }
-  
-  return <>{children}</>
+
+  return <>{children}</>;
 }
 
 /**
@@ -139,12 +139,12 @@ export function AdminOnly({ children }: { children: ReactNode }) {
  * @example const { canCreate, canEdit, canDelete } = usePermissions('staff')
  */
 export function useModulePermissions(module: string) {
-  const { can } = usePermission()
-  
+  const { can } = usePermission();
+
   return {
     canCreate: can(module, 'create'),
     canRead: can(module, 'read'),
     canUpdate: can(module, 'update'),
     canDelete: can(module, 'delete'),
-  }
+  };
 }

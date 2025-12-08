@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -9,154 +9,151 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CheckCircle2, XCircle, Loader2, CheckCircle, Calendar, Users } from 'lucide-react'
-import { validateRosterAction, type StaffInfo } from '@/app/actions/validate-roster.action'
-import type { ValidateResponse, ConstraintValidationResult, VerticalSummary, HorizontalSummary } from '@/lib/validations/validator'
-import { staffComparator } from '@/lib/staff-sort'
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CheckCircle2, XCircle, Loader2, CheckCircle, Calendar, Users } from 'lucide-react';
+import { validateRosterAction, type StaffInfo } from '@/app/actions/validate-roster.action';
+import type {
+  ValidateResponse,
+  ConstraintValidationResult,
+  VerticalSummary,
+  HorizontalSummary,
+} from '@/lib/validations/validator';
+import { staffComparator } from '@/lib/staff-sort';
 
 interface ValidationResultsProps {
-  rosterId: string
+  rosterId: string;
 }
 
 /**
  * ValidationResults Component
  * Part of FN/BE/ENG/002 - Roster Validator (Audit Mode)
- * 
+ *
  * Displays validation results inline below the roster grid.
  */
 export function ValidationResults({ rosterId }: ValidationResultsProps) {
-  const [isValidating, setIsValidating] = useState(false)
-  const [result, setResult] = useState<ValidateResponse | null>(null)
-  const [staffMap, setStaffMap] = useState<Record<string, StaffInfo>>({})
-  const [error, setError] = useState<string | null>(null)
+  const [isValidating, setIsValidating] = useState(false);
+  const [result, setResult] = useState<ValidateResponse | null>(null);
+  const [staffMap, setStaffMap] = useState<Record<string, StaffInfo>>({});
+  const [error, setError] = useState<string | null>(null);
 
   const handleValidate = async () => {
-    setIsValidating(true)
-    setError(null)
+    setIsValidating(true);
+    setError(null);
 
-    const response = await validateRosterAction(rosterId)
+    const response = await validateRosterAction(rosterId);
 
-    setIsValidating(false)
+    setIsValidating(false);
 
     if (response.success && response.data) {
-      setResult(response.data)
-      setStaffMap(response.staffMap || {})
+      setResult(response.data);
+      setStaffMap(response.staffMap || {});
     } else {
-      setError(response.error || 'Validation failed')
+      setError(response.error || 'Validation failed');
     }
-  }
+  };
 
   // Helper to get staff display name and rank
   const getStaffDisplay = (visibleId: string) => {
-    const staff = staffMap[visibleId]
+    const staff = staffMap[visibleId];
     if (staff) {
-      const displayName = staff.user?.name || staff.visibleId
+      const displayName = staff.user?.name || staff.visibleId;
       return {
         name: staff.isIC ? `${displayName} (IC)` : displayName,
         rank: staff.rank || '',
-      }
+      };
     }
-    return { name: visibleId, rank: '' }
-  }
+    return { name: visibleId, rank: '' };
+  };
 
   // Show validate button if no results yet
   if (!result && !isValidating && !error) {
     return (
-      <div className="flex justify-center">
-        <Button 
-          onClick={handleValidate}
-          size="lg"
-          variant="outline"
-        >
-          <CheckCircle className="h-5 w-5 mr-2" />
+      <div className='flex justify-center'>
+        <Button onClick={handleValidate} size='lg' variant='outline'>
+          <CheckCircle className='h-5 w-5 mr-2' />
           Validate Roster
         </Button>
       </div>
-    )
+    );
   }
 
   if (isValidating) {
     return (
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
+        <CardContent className='pt-6'>
+          <div className='flex items-center justify-center gap-2 text-muted-foreground'>
+            <Loader2 className='h-5 w-5 animate-spin' />
             <span>Running validation...</span>
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (error) {
     return (
-      <Card className="border-destructive">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-destructive">
-              <XCircle className="h-5 w-5" />
-              <span className="font-medium">{error}</span>
+      <Card className='border-destructive'>
+        <CardContent className='pt-6'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-2 text-destructive'>
+              <XCircle className='h-5 w-5' />
+              <span className='font-medium'>{error}</span>
             </div>
-            <Button onClick={handleValidate} variant="outline" size="sm">
+            <Button onClick={handleValidate} variant='outline' size='sm'>
               Try Again
             </Button>
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (!result) {
-    return null
+    return null;
   }
 
-  const summary = result.summary
+  const summary = result.summary;
 
   return (
-    <div className="space-y-4">
+    <div className='space-y-4'>
       {/* Summary Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <CardTitle className='flex items-center justify-between'>
+            <div className='flex items-center gap-2'>
               {result.overall_status === 'PASS' ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <CheckCircle2 className='h-5 w-5 text-green-600' />
               ) : (
-                <XCircle className="h-5 w-5 text-destructive" />
+                <XCircle className='h-5 w-5 text-destructive' />
               )}
               <span>Validation Status: {result.overall_status}</span>
             </div>
-            <Button 
-              onClick={handleValidate} 
-              variant="outline"
-              size="sm"
-            >
+            <Button onClick={handleValidate} variant='outline' size='sm'>
               Re-validate
             </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold">{result.total_constraints}</div>
-              <div className="text-sm text-muted-foreground">Total Constraints</div>
+          <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+            <div className='text-center'>
+              <div className='text-2xl font-bold'>{result.total_constraints}</div>
+              <div className='text-sm text-muted-foreground'>Total Constraints</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{result.passed_constraints}</div>
-              <div className="text-sm text-muted-foreground">Passed</div>
+            <div className='text-center'>
+              <div className='text-2xl font-bold text-green-600'>{result.passed_constraints}</div>
+              <div className='text-sm text-muted-foreground'>Passed</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-destructive">{result.failed_constraints}</div>
-              <div className="text-sm text-muted-foreground">Failed</div>
+            <div className='text-center'>
+              <div className='text-2xl font-bold text-destructive'>{result.failed_constraints}</div>
+              <div className='text-sm text-muted-foreground'>Failed</div>
             </div>
             {result.validation_time_ms && (
-              <div className="text-center">
-                <div className="text-2xl font-bold">{result.validation_time_ms.toFixed(2)}ms</div>
-                <div className="text-sm text-muted-foreground">Validation Time</div>
+              <div className='text-center'>
+                <div className='text-2xl font-bold'>{result.validation_time_ms.toFixed(2)}ms</div>
+                <div className='text-sm text-muted-foreground'>Validation Time</div>
               </div>
             )}
           </div>
@@ -164,23 +161,21 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
       </Card>
 
       {/* Tabbed Content: Summary & Constraints */}
-      <Tabs defaultValue="daily" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="daily" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
+      <Tabs defaultValue='daily' className='w-full'>
+        <TabsList className='grid w-full grid-cols-3'>
+          <TabsTrigger value='daily' className='flex items-center gap-2'>
+            <Calendar className='h-4 w-4' />
             Daily Summary
           </TabsTrigger>
-          <TabsTrigger value="staff" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+          <TabsTrigger value='staff' className='flex items-center gap-2'>
+            <Users className='h-4 w-4' />
             Staff Summary
           </TabsTrigger>
-          <TabsTrigger value="constraints">
-            Constraint Details
-          </TabsTrigger>
+          <TabsTrigger value='constraints'>Constraint Details</TabsTrigger>
         </TabsList>
 
         {/* Daily Summary Tab (Vertical) */}
-        <TabsContent value="daily">
+        <TabsContent value='daily'>
           <Card>
             <CardHeader>
               <CardTitle>Daily Shift Summary</CardTitle>
@@ -188,43 +183,53 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
             </CardHeader>
             <CardContent>
               {summary?.vertical_summary && summary.vertical_summary.length > 0 ? (
-                <div className="border rounded-lg overflow-x-auto">
+                <div className='border rounded-lg overflow-x-auto'>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="sticky left-0 bg-background">Day</TableHead>
+                        <TableHead className='sticky left-0 bg-background'>Day</TableHead>
                         {Object.keys(summary.vertical_summary[0]?.counts || {}).map((state) => (
-                          <TableHead key={state} className="text-center min-w-[80px]">
+                          <TableHead key={state} className='text-center min-w-[80px]'>
                             {state}
                           </TableHead>
                         ))}
-                        <TableHead className="text-center min-w-[60px] bg-green-50 dark:bg-green-950">IC</TableHead>
+                        <TableHead className='text-center min-w-[60px] bg-green-50 dark:bg-green-950'>
+                          IC
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {summary.vertical_summary.map((day: VerticalSummary) => (
                         <TableRow key={day.time_slot}>
-                          <TableCell className="sticky left-0 bg-background font-medium">
+                          <TableCell className='sticky left-0 bg-background font-medium'>
                             Day {day.time_slot}
-                            {day.date && <span className="text-xs text-muted-foreground ml-2">{day.date}</span>}
+                            {day.date && (
+                              <span className='text-xs text-muted-foreground ml-2'>{day.date}</span>
+                            )}
                           </TableCell>
                           {Object.entries(day.counts).map(([state, count]) => (
-                            <TableCell key={state} className="text-center">
-                              <Badge 
-                                variant="outline" 
+                            <TableCell key={state} className='text-center'>
+                              <Badge
+                                variant='outline'
                                 className={
-                                  state === '7' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' :
-                                  state === 'E' ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300' :
-                                  state === 'O' ? 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400' :
-                                  ''
+                                  state === '7'
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                    : state === 'E'
+                                      ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                                      : state === 'O'
+                                        ? 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400'
+                                        : ''
                                 }
                               >
                                 {count}
                               </Badge>
                             </TableCell>
                           ))}
-                          <TableCell className="text-center bg-green-50/50 dark:bg-green-950/30">
-                            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                          <TableCell className='text-center bg-green-50/50 dark:bg-green-950/30'>
+                            <Badge
+                              variant='secondary'
+                              className='bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                            >
                               {day.ic_count}
                             </Badge>
                           </TableCell>
@@ -234,7 +239,7 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
                   </Table>
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground py-8">
+                <div className='text-center text-muted-foreground py-8'>
                   No daily summary data available
                 </div>
               )}
@@ -243,113 +248,137 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
         </TabsContent>
 
         {/* Staff Summary Tab (Horizontal) */}
-        <TabsContent value="staff">
+        <TabsContent value='staff'>
           <Card>
             <CardHeader>
               <CardTitle>Staff Shift Summary</CardTitle>
-              <CardDescription>Total shifts assigned to each staff member (sorted by rank)</CardDescription>
+              <CardDescription>
+                Total shifts assigned to each staff member (sorted by rank)
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {summary?.horizontal_summary && summary.horizontal_summary.length > 0 ? (
-                <div className="border rounded-lg overflow-x-auto">
+                <div className='border rounded-lg overflow-x-auto'>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="sticky left-0 bg-background min-w-[150px]">Staff</TableHead>
-                        <TableHead className="text-center min-w-[60px]">Rank</TableHead>
+                        <TableHead className='sticky left-0 bg-background min-w-[150px]'>
+                          Staff
+                        </TableHead>
+                        <TableHead className='text-center min-w-[60px]'>Rank</TableHead>
                         {Object.keys(summary.horizontal_summary[0]?.counts || {}).map((state) => (
-                          <TableHead key={state} className="text-center min-w-[80px]">
+                          <TableHead key={state} className='text-center min-w-[80px]'>
                             {state}
                           </TableHead>
                         ))}
-                        <TableHead className="text-center min-w-[60px] bg-green-50 dark:bg-green-950">IC</TableHead>
-                        <TableHead className="text-center min-w-[80px]">Total Work</TableHead>
-                        <TableHead className="text-center min-w-[100px] bg-amber-50 dark:bg-amber-950">Hours</TableHead>
+                        <TableHead className='text-center min-w-[60px] bg-green-50 dark:bg-green-950'>
+                          IC
+                        </TableHead>
+                        <TableHead className='text-center min-w-[80px]'>Total Work</TableHead>
+                        <TableHead className='text-center min-w-[100px] bg-amber-50 dark:bg-amber-950'>
+                          Hours
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {/* Sort staff by rank using the staffMap */}
                       {[...summary.horizontal_summary]
                         .sort((a, b) => {
-                          const staffA = staffMap[a.resource]
-                          const staffB = staffMap[b.resource]
-                          if (!staffA || !staffB) return 0
+                          const staffA = staffMap[a.resource];
+                          const staffB = staffMap[b.resource];
+                          if (!staffA || !staffB) return 0;
                           return staffComparator(
-                            { rank: staffA.rank, name: staffA.user?.name ?? staffA.visibleId },
-                            { rank: staffB.rank, name: staffB.user?.name ?? staffB.visibleId }
-                          )
+                            {
+                              rank: staffA.rank,
+                              name: staffA.user?.name ?? staffA.visibleId,
+                            },
+                            {
+                              rank: staffB.rank,
+                              name: staffB.user?.name ?? staffB.visibleId,
+                            }
+                          );
                         })
                         .map((staff: HorizontalSummary) => {
-                        // Calculate total work days (exclude O=Off)
-                        const totalWork = Object.entries(staff.counts)
-                          .filter(([state]) => state !== 'O')
-                          .reduce((sum, [, count]) => sum + count, 0)
-                        
-                        // Calculate working hours (12h per shift for 7E mode)
-                        const workingHours = totalWork * 12
+                          // Calculate total work days (exclude O=Off)
+                          const totalWork = Object.entries(staff.counts)
+                            .filter(([state]) => state !== 'O')
+                            .reduce((sum, [, count]) => sum + count, 0);
 
-                        // Get staff display info
-                        const { name, rank } = getStaffDisplay(staff.resource)
-                        
-                        return (
-                          <TableRow key={staff.resource}>
-                            <TableCell className="sticky left-0 bg-background font-medium">
-                              {name}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {rank && (
-                                <Badge variant="outline" className="text-xs">
-                                  {rank}
-                                </Badge>
-                              )}
-                            </TableCell>
-                            {Object.entries(staff.counts).map(([state, count]) => (
-                              <TableCell key={state} className="text-center">
-                                <Badge 
-                                  variant="outline" 
-                                  className={
-                                    state === '7' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300' :
-                                    state === 'E' ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300' :
-                                    state === 'O' ? 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400' :
-                                    ''
-                                  }
+                          // Calculate working hours (12h per shift for 7E mode)
+                          const workingHours = totalWork * 12;
+
+                          // Get staff display info
+                          const { name, rank } = getStaffDisplay(staff.resource);
+
+                          return (
+                            <TableRow key={staff.resource}>
+                              <TableCell className='sticky left-0 bg-background font-medium'>
+                                {name}
+                              </TableCell>
+                              <TableCell className='text-center'>
+                                {rank && (
+                                  <Badge variant='outline' className='text-xs'>
+                                    {rank}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              {Object.entries(staff.counts).map(([state, count]) => (
+                                <TableCell key={state} className='text-center'>
+                                  <Badge
+                                    variant='outline'
+                                    className={
+                                      state === '7'
+                                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                        : state === 'E'
+                                          ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                                          : state === 'O'
+                                            ? 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400'
+                                            : ''
+                                    }
+                                  >
+                                    {count}
+                                  </Badge>
+                                </TableCell>
+                              ))}
+                              <TableCell className='text-center bg-green-50/50 dark:bg-green-950/30'>
+                                <Badge
+                                  variant='secondary'
+                                  className='bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
                                 >
-                                  {count}
+                                  {staff.ic_count}
                                 </Badge>
                               </TableCell>
-                            ))}
-                            <TableCell className="text-center bg-green-50/50 dark:bg-green-950/30">
-                              <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                                {staff.ic_count}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant="default">
-                                {totalWork}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center bg-amber-50/50 dark:bg-amber-950/30">
-                              <Badge variant="outline" className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 font-mono">
-                                {workingHours}h
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
+                              <TableCell className='text-center'>
+                                <Badge variant='default'>{totalWork}</Badge>
+                              </TableCell>
+                              <TableCell className='text-center bg-amber-50/50 dark:bg-amber-950/30'>
+                                <Badge
+                                  variant='outline'
+                                  className='bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 font-mono'
+                                >
+                                  {workingHours}h
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                     </TableBody>
                   </Table>
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground py-8">
+                <div className='text-center text-muted-foreground py-8'>
                   No staff summary data available
                 </div>
               )}
-              
+
               {/* Total IC Summary */}
               {summary?.total_ic_count !== undefined && (
-                <div className="mt-4 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg flex items-center justify-between">
-                  <span className="font-medium">Total IC Assignments</span>
-                  <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-lg px-4 py-1">
+                <div className='mt-4 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg flex items-center justify-between'>
+                  <span className='font-medium'>Total IC Assignments</span>
+                  <Badge
+                    variant='secondary'
+                    className='bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-lg px-4 py-1'
+                  >
                     {summary.total_ic_count}
                   </Badge>
                 </div>
@@ -359,82 +388,99 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
         </TabsContent>
 
         {/* Constraint Details Tab */}
-        <TabsContent value="constraints">
+        <TabsContent value='constraints'>
           <Card>
             <CardHeader>
               <CardTitle>Constraint Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg">
+              <div className='border rounded-lg'>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px]">Status</TableHead>
-                      <TableHead className="w-[150px]">Type</TableHead>
+                      <TableHead className='w-[100px]'>Status</TableHead>
+                      <TableHead className='w-[150px]'>Type</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Details</TableHead>
-                      <TableHead className="w-[100px] text-center">Violations</TableHead>
+                      <TableHead className='w-[100px] text-center'>Violations</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {result.results.map((constraintResult, idx) => (
-                      <TableRow 
+                      <TableRow
                         key={idx}
-                        className={constraintResult.status === 'FAIL' ? 'bg-destructive/5' : 'bg-green-50/50 dark:bg-green-950/20'}
+                        className={
+                          constraintResult.status === 'FAIL'
+                            ? 'bg-destructive/5'
+                            : 'bg-green-50/50 dark:bg-green-950/20'
+                        }
                       >
                         <TableCell>
-                          <div className="flex items-center gap-2">
+                          <div className='flex items-center gap-2'>
                             {constraintResult.status === 'PASS' ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <CheckCircle2 className='h-4 w-4 text-green-600' />
                             ) : (
-                              <XCircle className="h-4 w-4 text-destructive" />
+                              <XCircle className='h-4 w-4 text-destructive' />
                             )}
-                            <Badge variant={constraintResult.status === 'PASS' ? 'default' : 'destructive'}>
+                            <Badge
+                              variant={
+                                constraintResult.status === 'PASS' ? 'default' : 'destructive'
+                              }
+                            >
                               {constraintResult.status}
                             </Badge>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant='outline' className='text-xs'>
                             {constraintResult.constraint_type}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className='font-medium'>
                           {constraintResult.constraint_name || 'Unnamed Constraint'}
                         </TableCell>
                         <TableCell>
-                          <div className="max-w-md">
-                            <p className="text-sm text-muted-foreground line-clamp-2">
+                          <div className='max-w-md'>
+                            <p className='text-sm text-muted-foreground line-clamp-2'>
                               {constraintResult.details}
                             </p>
-                            {constraintResult.violations && constraintResult.violations.length > 0 && (
-                              <details className="mt-2">
-                                <summary className="text-xs text-destructive cursor-pointer hover:underline">
-                                  Show violations
-                                </summary>
-                                <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                                  {constraintResult.violations.slice(0, 5).map((violation, vidx) => (
-                                    <div key={vidx} className="text-xs bg-destructive/10 p-2 rounded">
-                                      <pre className="whitespace-pre-wrap font-mono text-xs">
-                                        {JSON.stringify(violation, null, 2)}
-                                      </pre>
-                                    </div>
-                                  ))}
-                                  {constraintResult.violations.length > 5 && (
-                                    <p className="text-xs text-muted-foreground italic">
-                                      ... and {constraintResult.violations.length - 5} more violations
-                                    </p>
-                                  )}
-                                </div>
-                              </details>
-                            )}
+                            {constraintResult.violations &&
+                              constraintResult.violations.length > 0 && (
+                                <details className='mt-2'>
+                                  <summary className='text-xs text-destructive cursor-pointer hover:underline'>
+                                    Show violations
+                                  </summary>
+                                  <div className='mt-2 space-y-1 max-h-40 overflow-y-auto'>
+                                    {constraintResult.violations
+                                      .slice(0, 5)
+                                      .map((violation, vidx) => (
+                                        <div
+                                          key={vidx}
+                                          className='text-xs bg-destructive/10 p-2 rounded'
+                                        >
+                                          <pre className='whitespace-pre-wrap font-mono text-xs'>
+                                            {JSON.stringify(violation, null, 2)}
+                                          </pre>
+                                        </div>
+                                      ))}
+                                    {constraintResult.violations.length > 5 && (
+                                      <p className='text-xs text-muted-foreground italic'>
+                                        ... and {constraintResult.violations.length - 5} more
+                                        violations
+                                      </p>
+                                    )}
+                                  </div>
+                                </details>
+                              )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className='text-center'>
                           {constraintResult.violations && constraintResult.violations.length > 0 ? (
-                            <Badge variant="destructive">{constraintResult.violations.length}</Badge>
+                            <Badge variant='destructive'>
+                              {constraintResult.violations.length}
+                            </Badge>
                           ) : (
-                            <span className="text-muted-foreground">-</span>
+                            <span className='text-muted-foreground'>-</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -447,5 +493,5 @@ export function ValidationResults({ rosterId }: ValidationResultsProps) {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

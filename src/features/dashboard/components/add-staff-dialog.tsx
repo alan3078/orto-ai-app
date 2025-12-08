@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/components/ui/dialog';
 import {
   Form,
   FormControl,
@@ -18,31 +18,31 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { X } from 'lucide-react'
-import { useAddStaff } from '../hooks/use-staff'
-import { getRolesAction } from '@/app/actions/role.actions'
-import { createStaffSchema, type CreateStaffDto } from '../services/dashboard.service'
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { X } from 'lucide-react';
+import { useAddStaff } from '../hooks/use-staff';
+import { getRolesAction } from '@/app/actions/role.actions';
+import { createStaffSchema, type CreateStaffDto } from '../services/dashboard.service';
 
 interface AddStaffDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
-  const addStaff = useAddStaff()
-  const [roles, setRoles] = useState<Array<{ id: string; name: string; order: number }>>([])
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const addStaff = useAddStaff();
+  const [roles, setRoles] = useState<Array<{ id: string; name: string; order: number }>>([]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
   const form = useForm<CreateStaffDto>({
     resolver: zodResolver(createStaffSchema),
@@ -54,57 +54,57 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
       gender: undefined,
       roleIds: [],
     },
-  })
+  });
 
   useEffect(() => {
     if (open) {
       getRolesAction().then((result) => {
-        if (result.success) setRoles(result.roles)
-      })
+        if (result.success) setRoles(result.roles);
+      });
     }
-  }, [open])
+  }, [open]);
 
   const handleRoleToggle = (roleId: string) => {
     setSelectedRoles((prev) =>
       prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
-    )
-    form.setValue('roleIds', selectedRoles.includes(roleId)
-      ? selectedRoles.filter((id) => id !== roleId)
-      : [...selectedRoles, roleId]
-    )
-  }
+    );
+    form.setValue(
+      'roleIds',
+      selectedRoles.includes(roleId)
+        ? selectedRoles.filter((id) => id !== roleId)
+        : [...selectedRoles, roleId]
+    );
+  };
 
   const onSubmit = async (data: CreateStaffDto) => {
     try {
-      await addStaff.mutateAsync({ ...data, roleIds: selectedRoles })
-      form.reset()
-      setSelectedRoles([])
-      onOpenChange(false)
+      await addStaff.mutateAsync({ ...data, roleIds: selectedRoles });
+      form.reset();
+      setSelectedRoles([]);
+      onOpenChange(false);
     } catch (error) {
       // Error is handled by the hook with toast
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Staff Member</DialogTitle>
-          <DialogDescription>
-            Add a new staff member to the scheduling system.
-          </DialogDescription>
+          <DialogDescription>Add a new staff member to the scheduling system.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
             <FormField
               control={form.control}
-              name="name"
+              name='name'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input placeholder='John Doe' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -113,21 +113,21 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
             <FormField
               control={form.control}
-              name="rank"
+              name='rank'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Rank (Optional)</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value || ''}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select rank" />
+                        <SelectValue placeholder='Select rank' />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="SNO">SNO</SelectItem>
-                      <SelectItem value="SRN">SRN</SelectItem>
-                      <SelectItem value="RN">RN</SelectItem>
-                      <SelectItem value="RN-CW">RN-CW</SelectItem>
+                      <SelectItem value='SNO'>SNO</SelectItem>
+                      <SelectItem value='SRN'>SRN</SelectItem>
+                      <SelectItem value='RN'>RN</SelectItem>
+                      <SelectItem value='RN-CW'>RN-CW</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -137,13 +137,13 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
             <FormField
               control={form.control}
-              name="visibleId"
+              name='visibleId'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Visible ID</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="EMP001"
+                      placeholder='EMP001'
                       {...field}
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                     />
@@ -155,16 +155,12 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
             <FormField
               control={form.control}
-              name="email"
+              name='email'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Email (Optional)</FormLabel>
                   <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="john@example.com"
-                      {...field}
-                    />
+                    <Input type='email' placeholder='john@example.com' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -173,19 +169,19 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
             <FormField
               control={form.control}
-              name="gender"
+              name='gender'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Gender (Optional)</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select gender" />
+                        <SelectValue placeholder='Select gender' />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="F">Female</SelectItem>
-                      <SelectItem value="M">Male</SelectItem>
+                      <SelectItem value='F'>Female</SelectItem>
+                      <SelectItem value='M'>Male</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -195,36 +191,34 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
             <div>
               <FormLabel>Roles (Optional)</FormLabel>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <div className='flex flex-wrap gap-2 mt-2'>
                 {roles.map((role) => (
                   <Badge
                     key={role.id}
                     variant={selectedRoles.includes(role.id) ? 'default' : 'outline'}
-                    className="cursor-pointer"
+                    className='cursor-pointer'
                     onClick={() => handleRoleToggle(role.id)}
                   >
                     {role.name}
-                    {selectedRoles.includes(role.id) && (
-                      <X className="ml-1 h-3 w-3" />
-                    )}
+                    {selectedRoles.includes(role.id) && <X className='ml-1 h-3 w-3' />}
                   </Badge>
                 ))}
               </div>
-              <FormDescription className="text-xs mt-1">
+              <FormDescription className='text-xs mt-1'>
                 Click to toggle roles (ordered by priority)
               </FormDescription>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className='flex justify-end gap-2'>
               <Button
-                type="button"
-                variant="outline"
+                type='button'
+                variant='outline'
                 onClick={() => onOpenChange(false)}
                 disabled={addStaff.isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={addStaff.isPending}>
+              <Button type='submit' disabled={addStaff.isPending}>
                 {addStaff.isPending ? 'Adding...' : 'Add Staff'}
               </Button>
             </div>
@@ -232,5 +226,5 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

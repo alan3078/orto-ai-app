@@ -1,7 +1,7 @@
-export { Navbar } from './navbar'
-export { Hero } from './hero'
-export { Features } from './features'
-export { AdminDemo } from './admin-demo'
-export { Testimonials } from './testimonials'
-export { Pricing } from './pricing'
-export { Footer } from './footer'
+export { Navbar } from './navbar';
+export { Hero } from './hero';
+export { Features } from './features';
+export { AdminDemo } from './admin-demo';
+export { Testimonials } from './testimonials';
+export { Pricing } from './pricing';
+export { Footer } from './footer';

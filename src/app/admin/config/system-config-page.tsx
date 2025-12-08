@@ -98,19 +98,13 @@ export function SystemConfigPage({ initialGroups }: Props) {
       {/* Config Navigation Tabs */}
       <div className='flex gap-2 border-b pb-2'>
         <Link href={ROUTES.ADMIN.CONFIG}>
-          <Button
-            variant='default'
-            size='sm'
-            className='gap-2'>
+          <Button variant='default' size='sm' className='gap-2'>
             <Settings className='h-4 w-4' />
             Scheduling Policies
           </Button>
         </Link>
         <Link href={ROUTES.ADMIN.SHIFT_SETTINGS}>
-          <Button
-            variant='outline'
-            size='sm'
-            className='gap-2'>
+          <Button variant='outline' size='sm' className='gap-2'>
             <Clock className='h-4 w-4' />
             Shift Settings
           </Button>
@@ -162,9 +156,7 @@ export function SystemConfigPage({ initialGroups }: Props) {
       )}
 
       {/* Edit Dialog */}
-      <Dialog
-        open={!!editingItem}
-        onOpenChange={() => setEditingItem(null)}>
+      <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
         <DialogContent className='max-w-2xl'>
           <DialogHeader>
             <DialogTitle>Edit Configuration Value</DialogTitle>
@@ -183,15 +175,10 @@ export function SystemConfigPage({ initialGroups }: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant='outline'
-              onClick={() => setEditingItem(null)}
-              disabled={isPending}>
+            <Button variant='outline' onClick={() => setEditingItem(null)} disabled={isPending}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isPending}>
+            <Button onClick={handleSave} disabled={isPending}>
               {isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
@@ -234,9 +221,7 @@ function ConfigTable({
               </div>
             </TableCell>
             <TableCell>
-              <Badge
-                variant='outline'
-                className='text-xs'>
+              <Badge variant='outline' className='text-xs'>
                 {item.type}
               </Badge>
             </TableCell>
@@ -256,7 +241,8 @@ function ConfigTable({
                 size='sm'
                 variant='ghost'
                 onClick={() => onEdit(item)}
-                disabled={item.locked || isPending}>
+                disabled={item.locked || isPending}
+              >
                 {item.locked ? <Lock className='h-4 w-4' /> : <Edit className='h-4 w-4' />}
               </Button>
             </TableCell>
@@ -264,9 +250,7 @@ function ConfigTable({
         ))}
         {items.length === 0 && (
           <TableRow>
-            <TableCell
-              colSpan={6}
-              className='text-center text-muted-foreground'>
+            <TableCell colSpan={6} className='text-center text-muted-foreground'>
               No configuration items
             </TableCell>
           </TableRow>

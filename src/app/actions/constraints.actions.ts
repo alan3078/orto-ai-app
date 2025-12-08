@@ -1,8 +1,8 @@
-'use server'
+'use server';
 
-import { revalidatePath } from 'next/cache'
-import { prisma } from '@/lib/prisma'
-import { ShiftType } from '@/types/enums'
+import { revalidatePath } from 'next/cache';
+import { prisma } from '@/lib/prisma';
+import { ShiftType } from '@/types/enums';
 
 /**
  * Get all active constraints with shiftType for scope display
@@ -27,14 +27,14 @@ export async function getConstraintsAction() {
         createdAt: true,
         updatedAt: true,
       },
-    })
-    return { success: true as const, constraints }
+    });
+    return { success: true as const, constraints };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       constraints: [],
-    }
+    };
   }
 }
 
@@ -42,15 +42,15 @@ export async function getConstraintsAction() {
  * Create a new constraint
  */
 export async function createConstraintAction(data: {
-  name: string
-  type: 'point' | 'vertical_sum'
-  config: Record<string, unknown>
-  description?: string
-  priority?: number
-  shiftType?: ShiftType | null
+  name: string;
+  type: 'point' | 'vertical_sum';
+  config: Record<string, unknown>;
+  description?: string;
+  priority?: number;
+  shiftType?: ShiftType | null;
 }) {
   try {
-    const constraint = await prisma.constraint.create({ 
+    const constraint = await prisma.constraint.create({
       data: {
         name: data.name,
         type: data.type,
@@ -58,16 +58,16 @@ export async function createConstraintAction(data: {
         description: data.description,
         priority: data.priority,
         shiftType: data.shiftType ?? null, // null = GLOBAL
-      }
-    })
-    revalidatePath('/roster-management')
-    return { success: true as const, constraint }
+      },
+    });
+    revalidatePath('/roster-management');
+    return { success: true as const, constraint };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       constraint: null,
-    }
+    };
   }
 }
 
@@ -79,14 +79,14 @@ export async function deleteConstraintAction(id: string) {
     await prisma.constraint.update({
       where: { id },
       data: { isActive: false },
-    })
-    revalidatePath('/roster-management')
-    return { success: true as const }
+    });
+    revalidatePath('/roster-management');
+    return { success: true as const };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
-    }
+    };
   }
 }
 
@@ -96,13 +96,13 @@ export async function deleteConstraintAction(id: string) {
 export async function updateConstraintAction(
   id: string,
   data: {
-    name?: string
-    type?: string
-    config?: Record<string, unknown>
-    description?: string
-    priority?: number
-    shiftType?: ShiftType | null
-    isRequired?: boolean
+    name?: string;
+    type?: string;
+    config?: Record<string, unknown>;
+    description?: string;
+    priority?: number;
+    shiftType?: ShiftType | null;
+    isRequired?: boolean;
   }
 ) {
   try {
@@ -112,19 +112,21 @@ export async function updateConstraintAction(
         ...(data.name && { name: data.name }),
         ...(data.type && { type: data.type }),
         ...(data.config && { config: data.config as any }),
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
         ...(data.priority !== undefined && { priority: data.priority }),
         ...(data.shiftType !== undefined && { shiftType: data.shiftType }),
         ...(data.isRequired !== undefined && { isRequired: data.isRequired }),
       },
-    })
-    revalidatePath('/roster-management')
-    return { success: true as const, constraint }
+    });
+    revalidatePath('/roster-management');
+    return { success: true as const, constraint };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       constraint: null,
-    }
+    };
   }
 }

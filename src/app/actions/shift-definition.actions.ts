@@ -1,7 +1,7 @@
-'use server'
+'use server';
 
-import { prisma } from '@/lib/prisma'
-import { revalidatePath } from 'next/cache'
+import { prisma } from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Get all shift definitions (FN/ADM/STF/007)
@@ -11,14 +11,14 @@ export async function getShiftDefinitionsAction() {
     const shifts = await prisma.shiftDefinition.findMany({
       where: { deletedAt: null },
       orderBy: { code: 'asc' },
-    })
-    return { success: true as const, shifts }
+    });
+    return { success: true as const, shifts };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       shifts: [],
-    }
+    };
   }
 }
 
@@ -26,22 +26,22 @@ export async function getShiftDefinitionsAction() {
  * Create a new shift definition
  */
 export async function createShiftDefinitionAction(data: {
-  code: string
-  startMinutes: number
-  durationMinutes: number
+  code: string;
+  startMinutes: number;
+  durationMinutes: number;
 }) {
   try {
     // Check for duplicate code
     const existing = await prisma.shiftDefinition.findFirst({
       where: { code: data.code, deletedAt: null },
-    })
+    });
 
     if (existing) {
       return {
         success: false as const,
         error: 'Shift code already exists',
         shift: null,
-      }
+      };
     }
 
     // Validation
@@ -50,7 +50,7 @@ export async function createShiftDefinitionAction(data: {
         success: false as const,
         error: 'Start minutes must be between 0 and 1439',
         shift: null,
-      }
+      };
     }
 
     if (data.durationMinutes <= 0) {
@@ -58,7 +58,7 @@ export async function createShiftDefinitionAction(data: {
         success: false as const,
         error: 'Duration must be greater than 0',
         shift: null,
-      }
+      };
     }
 
     const shift = await prisma.shiftDefinition.create({
@@ -68,16 +68,16 @@ export async function createShiftDefinitionAction(data: {
         durationMinutes: data.durationMinutes,
         isActive: true,
       },
-    })
+    });
 
-    revalidatePath('/config/shift-settings')
-    return { success: true as const, shift }
+    revalidatePath('/config/shift-settings');
+    return { success: true as const, shift };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       shift: null,
-    }
+    };
   }
 }
 
@@ -93,13 +93,13 @@ export async function updateShiftDefinitionAction(
     if (data.code) {
       const existing = await prisma.shiftDefinition.findFirst({
         where: { code: data.code, id: { not: id }, deletedAt: null },
-      })
+      });
       if (existing) {
         return {
           success: false as const,
           error: 'Shift code already exists',
           shift: null,
-        }
+        };
       }
     }
 
@@ -109,7 +109,7 @@ export async function updateShiftDefinitionAction(
         success: false as const,
         error: 'Start minutes must be between 0 and 1439',
         shift: null,
-      }
+      };
     }
 
     if (data.durationMinutes !== undefined && data.durationMinutes <= 0) {
@@ -117,26 +117,30 @@ export async function updateShiftDefinitionAction(
         success: false as const,
         error: 'Duration must be greater than 0',
         shift: null,
-      }
+      };
     }
 
     const shift = await prisma.shiftDefinition.update({
       where: { id },
       data: {
         ...(data.code && { code: data.code.toUpperCase() }),
-        ...(data.startMinutes !== undefined && { startMinutes: data.startMinutes }),
-        ...(data.durationMinutes !== undefined && { durationMinutes: data.durationMinutes }),
+        ...(data.startMinutes !== undefined && {
+          startMinutes: data.startMinutes,
+        }),
+        ...(data.durationMinutes !== undefined && {
+          durationMinutes: data.durationMinutes,
+        }),
       },
-    })
+    });
 
-    revalidatePath('/config/shift-settings')
-    return { success: true as const, shift }
+    revalidatePath('/config/shift-settings');
+    return { success: true as const, shift };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       shift: null,
-    }
+    };
   }
 }
 
@@ -145,44 +149,40 @@ export async function updateShiftDefinitionAction(
  */
 export async function toggleShiftActiveAction(id: string) {
   try {
-    const shift = await prisma.shiftDefinition.findUnique({ where: { id } })
+    const shift = await prisma.shiftDefinition.findUnique({ where: { id } });
     if (!shift) {
       return {
         success: false as const,
         error: 'Shift not found',
-      }
+      };
     }
 
     await prisma.shiftDefinition.update({
       where: { id },
       data: { isActive: !shift.isActive },
-    })
+    });
 
-    revalidatePath('/config/shift-settings')
-    return { success: true as const }
+    revalidatePath('/config/shift-settings');
+    return { success: true as const };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
-    }
+    };
   }
 }
 
 /**
  * Hard delete shift with audit trail (FN/ADM/STF/007)
  */
-export async function hardDeleteShiftAction(
-  id: string,
-  reason?: string,
-  deletedBy?: string
-) {
+export async function hardDeleteShiftAction(id: string, reason?: string, deletedBy?: string) {
   try {
-    const shift = await prisma.shiftDefinition.findUnique({ where: { id } })
+    const shift = await prisma.shiftDefinition.findUnique({ where: { id } });
     if (!shift) {
       return {
         success: false as const,
         error: 'Shift not found',
-      }
+      };
     }
 
     // Transaction: create audit record + delete shift
@@ -197,15 +197,15 @@ export async function hardDeleteShiftAction(
         },
       }),
       prisma.shiftDefinition.delete({ where: { id } }),
-    ])
+    ]);
 
-    revalidatePath('/config/shift-settings')
-    return { success: true as const }
+    revalidatePath('/config/shift-settings');
+    return { success: true as const };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
-    }
+    };
   }
 }
 
@@ -217,13 +217,13 @@ export async function getShiftAuditLogAction() {
     const audits = await prisma.shiftDefinitionAudit.findMany({
       orderBy: { deletedAt: 'desc' },
       take: 50,
-    })
-    return { success: true as const, audits }
+    });
+    return { success: true as const, audits };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       audits: [],
-    }
+    };
   }
 }

@@ -1,10 +1,10 @@
-'use server'
+'use server';
 
-import { revalidatePath } from 'next/cache'
-import { prisma } from '@/lib/prisma'
-import { sortStaff } from '@/lib/staff-sort'
-import { hash } from 'bcryptjs'
-import { type Gender, UserRole } from '@prisma/client'
+import { revalidatePath } from 'next/cache';
+import { prisma } from '@/lib/prisma';
+import { sortStaff } from '@/lib/staff-sort';
+import { hash } from 'bcryptjs';
+import { type Gender, UserRole } from '@prisma/client';
 
 /**
  * Get all active staff members with roles (FN/ADM/STF/007)
@@ -25,7 +25,14 @@ export async function getStaffAction() {
         createdAt: true,
         updatedAt: true,
         user: {
-          select: { id: true, email: true, name: true, role: true, isActive: true, deletedAt: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            isActive: true,
+            deletedAt: true,
+          },
         },
         staffRoles: {
           include: { role: true },
@@ -35,16 +42,16 @@ export async function getStaffAction() {
           select: { id: true, name: true },
         },
       },
-    })
-    const staff = sortStaff(staffRaw as any)
-    console.log(`[getStaffAction] Returning ${staff.length} staff members (sorted)`)
-    return { success: true as const, staff }
+    });
+    const staff = sortStaff(staffRaw as any);
+    console.log(`[getStaffAction] Returning ${staff.length} staff members (sorted)`);
+    return { success: true as const, staff };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       staff: [],
-    }
+    };
   }
 }
 
@@ -53,61 +60,61 @@ export async function getStaffAction() {
  * Creates both User and Staff records in a transaction (1:1 relationship)
  */
 export async function createStaffAction(data: {
-  name: string
-  email?: string
-  rank?: string
-  visibleId: string
-  gender?: Gender
-  roleIds?: string[]
-  password?: string
+  name: string;
+  email?: string;
+  rank?: string;
+  visibleId: string;
+  gender?: Gender;
+  roleIds?: string[];
+  password?: string;
 }) {
   try {
     // Generate username from visibleId (lowercase)
-    const username = data.visibleId.toLowerCase()
+    const username = data.visibleId.toLowerCase();
 
     // Check for duplicate visibleId
     const existingStaff = await prisma.staff.findUnique({
       where: { visibleId: data.visibleId },
-    })
+    });
 
     if (existingStaff) {
       return {
         success: false as const,
         error: 'Staff ID already exists',
         staff: null,
-      }
+      };
     }
 
     // Check for duplicate username
     const existingUsername = await prisma.user.findUnique({
       where: { username },
-    })
+    });
 
     if (existingUsername) {
       return {
         success: false as const,
         error: 'Username already exists',
         staff: null,
-      }
+      };
     }
 
     // Check for duplicate email (if provided)
     if (data.email) {
       const existingEmail = await prisma.user.findUnique({
         where: { email: data.email },
-      })
+      });
 
       if (existingEmail) {
         return {
           success: false as const,
           error: 'Email already exists',
           staff: null,
-        }
+        };
       }
     }
 
     // Default password if not provided
-    const passwordHash = await hash(data.password || 'changeme123', 12)
+    const passwordHash = await hash(data.password || 'changeme123', 12);
 
     // Create User + Staff in transaction
     const user = await prisma.user.create({
@@ -143,18 +150,18 @@ export async function createStaffAction(data: {
           },
         },
       },
-    })
+    });
 
-    revalidatePath('/roster-management')
-    revalidatePath('/staff')
-    revalidatePath('/admin/users')
-    return { success: true as const, staff: user.staff }
+    revalidatePath('/roster-management');
+    revalidatePath('/staff');
+    revalidatePath('/admin/users');
+    return { success: true as const, staff: user.staff };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       staff: null,
-    }
+    };
   }
 }
 
@@ -163,29 +170,29 @@ export async function createStaffAction(data: {
  * Updates both Staff and User records (1:1 relationship)
  */
 export async function updateStaffAction(data: {
-  id: string
-  name: string
-  email?: string
-  rank?: string
-  visibleId: string
-  gender?: Gender
-  roleIds?: string[]
+  id: string;
+  name: string;
+  email?: string;
+  rank?: string;
+  visibleId: string;
+  gender?: Gender;
+  roleIds?: string[];
 }) {
   try {
     // Check for duplicate visibleId (excluding current staff)
     const existingStaff = await prisma.staff.findFirst({
-      where: { 
+      where: {
         visibleId: data.visibleId,
         NOT: { id: data.id },
       },
-    })
+    });
 
     if (existingStaff) {
       return {
         success: false as const,
         error: 'Staff ID already exists',
         staff: null,
-      }
+      };
     }
 
     // Check for duplicate email (if provided, excluding current user)
@@ -193,22 +200,22 @@ export async function updateStaffAction(data: {
       const staff = await prisma.staff.findUnique({
         where: { id: data.id },
         select: { userId: true },
-      })
-      
+      });
+
       if (staff) {
         const existingEmail = await prisma.user.findFirst({
-          where: { 
+          where: {
             email: data.email,
             NOT: { id: staff.userId },
           },
-        })
+        });
 
         if (existingEmail) {
           return {
             success: false as const,
             error: 'Email already exists',
             staff: null,
-          }
+          };
         }
       }
     }
@@ -216,7 +223,7 @@ export async function updateStaffAction(data: {
     // Delete existing role assignments
     await prisma.staffRole.deleteMany({
       where: { staffId: data.id },
-    })
+    });
 
     // Update Staff and User
     const updatedStaff = await prisma.staff.update({
@@ -244,18 +251,18 @@ export async function updateStaffAction(data: {
           orderBy: { role: { order: 'asc' } },
         },
       },
-    })
+    });
 
-    revalidatePath('/roster-management')
-    revalidatePath('/staff')
-    revalidatePath('/admin/users')
-    return { success: true as const, staff: updatedStaff }
+    revalidatePath('/roster-management');
+    revalidatePath('/staff');
+    revalidatePath('/admin/users');
+    return { success: true as const, staff: updatedStaff };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       staff: null,
-    }
+    };
   }
 }
 
@@ -264,12 +271,12 @@ export async function updateStaffAction(data: {
  */
 export async function deleteStaffAction(id: string) {
   try {
-    const now = new Date()
-    
+    const now = new Date();
+
     // Soft delete both Staff and User
     const staff = await prisma.staff.update({
       where: { id },
-      data: { 
+      data: {
         isActive: false,
         deletedAt: now,
         user: {
@@ -280,16 +287,19 @@ export async function deleteStaffAction(id: string) {
         },
       },
       include: { user: { select: { name: true } } },
-    })
+    });
 
-    revalidatePath('/roster-management')
-    revalidatePath('/admin/users')
-    return { success: true as const, message: `${staff.user.name} has been deleted` }
+    revalidatePath('/roster-management');
+    revalidatePath('/admin/users');
+    return {
+      success: true as const,
+      message: `${staff.user.name} has been deleted`,
+    };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
-    }
+    };
   }
 }
 
@@ -303,20 +313,20 @@ export async function toggleStaffActiveAction(id: string) {
     const staff = await prisma.staff.findUnique({
       where: { id },
       select: { isActive: true, user: { select: { name: true } } },
-    })
+    });
 
     if (!staff) {
       return {
         success: false as const,
         error: 'Staff not found',
         isActive: false,
-      }
+      };
     }
 
     // Toggle the status for both Staff and User
     const updated = await prisma.staff.update({
       where: { id },
-      data: { 
+      data: {
         isActive: !staff.isActive,
         user: {
           update: {
@@ -325,22 +335,22 @@ export async function toggleStaffActiveAction(id: string) {
         },
       },
       select: { isActive: true },
-    })
+    });
 
-    revalidatePath('/roster-management')
-    revalidatePath('/staff')
-    revalidatePath('/admin/users')
-    return { 
-      success: true as const, 
+    revalidatePath('/roster-management');
+    revalidatePath('/staff');
+    revalidatePath('/admin/users');
+    return {
+      success: true as const,
       isActive: updated.isActive,
       message: `${staff.user.name} is now ${updated.isActive ? 'active' : 'inactive'}`,
-    }
+    };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       isActive: false,
-    }
+    };
   }
 }
 
@@ -349,9 +359,8 @@ export async function toggleStaffActiveAction(id: string) {
  */
 export async function getStaffWithFilterAction(filter: 'all' | 'active' | 'inactive' = 'active') {
   try {
-    const whereClause = filter === 'all' 
-      ? { deletedAt: null } 
-      : { isActive: filter === 'active', deletedAt: null }
+    const whereClause =
+      filter === 'all' ? { deletedAt: null } : { isActive: filter === 'active', deletedAt: null };
 
     const staffRaw = await prisma.staff.findMany({
       where: whereClause,
@@ -367,7 +376,14 @@ export async function getStaffWithFilterAction(filter: 'all' | 'active' | 'inact
         createdAt: true,
         updatedAt: true,
         user: {
-          select: { id: true, email: true, name: true, role: true, isActive: true, deletedAt: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            isActive: true,
+            deletedAt: true,
+          },
         },
         staffRoles: {
           include: { role: true },
@@ -377,15 +393,17 @@ export async function getStaffWithFilterAction(filter: 'all' | 'active' | 'inact
           select: { id: true, name: true },
         },
       },
-    })
-    const staff = sortStaff(staffRaw as any)
-    console.log(`[getStaffWithFilterAction] Returning ${staff.length} staff members (filter: ${filter})`)
-    return { success: true as const, staff }
+    });
+    const staff = sortStaff(staffRaw as any);
+    console.log(
+      `[getStaffWithFilterAction] Returning ${staff.length} staff members (filter: ${filter})`
+    );
+    return { success: true as const, staff };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       staff: [],
-    }
+    };
   }
 }

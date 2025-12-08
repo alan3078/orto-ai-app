@@ -1,31 +1,31 @@
-import NextAuth from 'next-auth'
-import Credentials from 'next-auth/providers/credentials'
-import { compare } from 'bcryptjs'
-import { prisma } from './prisma'
-import type { UserRole } from '@prisma/client'
+import NextAuth from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
+import { compare } from 'bcryptjs';
+import { prisma } from './prisma';
+import type { UserRole } from '@prisma/client';
 
 // Extend the built-in session types
 declare module 'next-auth' {
   interface Session {
     user: {
-      id: string
-      username: string
-      email?: string | null
-      name?: string | null
-      role: UserRole
-      mustResetPassword: boolean
-      staffId?: string | null
-    }
+      id: string;
+      username: string;
+      email?: string | null;
+      name?: string | null;
+      role: UserRole;
+      mustResetPassword: boolean;
+      staffId?: string | null;
+    };
   }
 
   interface User {
-    id: string
-    username: string
-    email?: string | null
-    name?: string | null
-    role: UserRole
-    mustResetPassword: boolean
-    staffId?: string | null
+    id: string;
+    username: string;
+    email?: string | null;
+    name?: string | null;
+    role: UserRole;
+    mustResetPassword: boolean;
+    staffId?: string | null;
   }
 }
 
@@ -39,32 +39,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
-          return null
+          return null;
         }
 
-        const username = credentials.username as string
-        const password = credentials.password as string
+        const username = credentials.username as string;
+        const password = credentials.password as string;
 
         const user = await prisma.user.findUnique({
           where: { username },
           include: { staff: true },
-        })
+        });
 
         if (!user || !user.isActive) {
-          return null
+          return null;
         }
 
-        const isPasswordValid = await compare(password, user.passwordHash)
+        const isPasswordValid = await compare(password, user.passwordHash);
 
         if (!isPasswordValid) {
-          return null
+          return null;
         }
 
         // Update last login time
         await prisma.user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
-        })
+        });
 
         return {
           id: user.id,
@@ -74,30 +74,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           mustResetPassword: user.mustResetPassword,
           staffId: user.staff?.id ?? null,
-        }
+        };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
-        token.username = user.username
-        token.role = user.role
-        token.mustResetPassword = user.mustResetPassword
-        token.staffId = user.staffId
+        token.id = user.id;
+        token.username = user.username;
+        token.role = user.role;
+        token.mustResetPassword = user.mustResetPassword;
+        token.staffId = user.staffId;
       }
-      return token
+      return token;
     },
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id as string
-        session.user.username = token.username as string
-        session.user.role = token.role as UserRole
-        session.user.mustResetPassword = token.mustResetPassword as boolean
-        session.user.staffId = token.staffId as string | null | undefined
+        session.user.id = token.id as string;
+        session.user.username = token.username as string;
+        session.user.role = token.role as UserRole;
+        session.user.mustResetPassword = token.mustResetPassword as boolean;
+        session.user.staffId = token.staffId as string | null | undefined;
       }
-      return session
+      return session;
     },
   },
   pages: {
@@ -108,4 +108,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-})
+});

@@ -5,7 +5,7 @@
 export const ROUTES = {
   // Public routes
   HOME: '/',
-  
+
   // Admin routes
   ADMIN: {
     HOME: '/admin/home',
@@ -19,13 +19,13 @@ export const ROUTES = {
     ROLES: '/admin/roles',
     PROFILE: '/admin/profile',
   },
-  
+
   // Auth routes
   AUTH: {
     LOGIN: '/login',
     LOGOUT: '/',
   },
-  
+
   // Landing page sections (anchor links)
   SECTIONS: {
     FEATURES: '#features',
@@ -33,11 +33,11 @@ export const ROUTES = {
     PRICING: '#pricing',
     CONTACT: '#contact',
   },
-} as const
+} as const;
 
 // Type helper for route values
-export type Route = 
+export type Route =
   | typeof ROUTES.HOME
-  | typeof ROUTES.ADMIN[keyof typeof ROUTES.ADMIN]
-  | typeof ROUTES.AUTH[keyof typeof ROUTES.AUTH]
-  | typeof ROUTES.SECTIONS[keyof typeof ROUTES.SECTIONS]
+  | (typeof ROUTES.ADMIN)[keyof typeof ROUTES.ADMIN]
+  | (typeof ROUTES.AUTH)[keyof typeof ROUTES.AUTH]
+  | (typeof ROUTES.SECTIONS)[keyof typeof ROUTES.SECTIONS];

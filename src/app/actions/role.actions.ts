@@ -1,7 +1,7 @@
-'use server'
+'use server';
 
-import { prisma } from '@/lib/prisma'
-import { revalidatePath } from 'next/cache'
+import { prisma } from '@/lib/prisma';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Get all active roles ordered by priority (FN/ADM/STF/007)
@@ -11,14 +11,14 @@ export async function getRolesAction() {
     const roles = await prisma.role.findMany({
       where: { isActive: true },
       orderBy: { order: 'asc' },
-    })
-    return { success: true as const, roles }
+    });
+    return { success: true as const, roles };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       roles: [],
-    }
+    };
   }
 }
 
@@ -34,49 +34,46 @@ export async function getAllRolesAction() {
           select: { staffRoles: true },
         },
       },
-    })
-    return { success: true as const, roles }
+    });
+    return { success: true as const, roles };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       roles: [],
-    }
+    };
   }
 }
 
 /**
  * Create a new role
  */
-export async function createRoleAction(data: {
-  name: string
-  order: number
-}) {
+export async function createRoleAction(data: { name: string; order: number }) {
   try {
     // Check for duplicate name
     const existing = await prisma.role.findUnique({
       where: { name: data.name },
-    })
+    });
 
     if (existing) {
       return {
         success: false as const,
         error: 'Role name already exists',
         role: null,
-      }
+      };
     }
 
     // Check for duplicate order
     const orderExists = await prisma.role.findUnique({
       where: { order: data.order },
-    })
+    });
 
     if (orderExists) {
       return {
         success: false as const,
         error: 'Order value already in use',
         role: null,
-      }
+      };
     }
 
     const role = await prisma.role.create({
@@ -85,16 +82,16 @@ export async function createRoleAction(data: {
         order: data.order,
         isActive: true,
       },
-    })
+    });
 
-    revalidatePath('/config/roles')
-    return { success: true as const, role }
+    revalidatePath('/config/roles');
+    return { success: true as const, role };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       role: null,
-    }
+    };
   }
 }
 
@@ -110,13 +107,13 @@ export async function updateRoleAction(
     if (data.name) {
       const existing = await prisma.role.findFirst({
         where: { name: data.name, id: { not: id } },
-      })
+      });
       if (existing) {
         return {
           success: false as const,
           error: 'Role name already exists',
           role: null,
-        }
+        };
       }
     }
 
@@ -124,13 +121,13 @@ export async function updateRoleAction(
     if (data.order !== undefined) {
       const orderExists = await prisma.role.findFirst({
         where: { order: data.order, id: { not: id } },
-      })
+      });
       if (orderExists) {
         return {
           success: false as const,
           error: 'Order value already in use',
           role: null,
-        }
+        };
       }
     }
 
@@ -141,16 +138,16 @@ export async function updateRoleAction(
         ...(data.order !== undefined && { order: data.order }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
       },
-    })
+    });
 
-    revalidatePath('/config/roles')
-    return { success: true as const, role }
+    revalidatePath('/config/roles');
+    return { success: true as const, role };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
       role: null,
-    }
+    };
   }
 }
 
@@ -159,26 +156,26 @@ export async function updateRoleAction(
  */
 export async function toggleRoleActiveAction(id: string) {
   try {
-    const role = await prisma.role.findUnique({ where: { id } })
+    const role = await prisma.role.findUnique({ where: { id } });
     if (!role) {
       return {
         success: false as const,
         error: 'Role not found',
-      }
+      };
     }
 
     await prisma.role.update({
       where: { id },
       data: { isActive: !role.isActive },
-    })
+    });
 
-    revalidatePath('/config/roles')
-    return { success: true as const }
+    revalidatePath('/config/roles');
+    return { success: true as const };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
-    }
+    };
   }
 }
 
@@ -190,30 +187,30 @@ export async function deleteRoleAction(id: string) {
     const role = await prisma.role.findUnique({
       where: { id },
       include: { _count: { select: { staffRoles: true } } },
-    })
+    });
 
     if (!role) {
       return {
         success: false as const,
         error: 'Role not found',
-      }
+      };
     }
 
     if (role._count.staffRoles > 0) {
       return {
         success: false as const,
         error: `Cannot delete role: ${role._count.staffRoles} staff member(s) assigned`,
-      }
+      };
     }
 
-    await prisma.role.delete({ where: { id } })
+    await prisma.role.delete({ where: { id } });
 
-    revalidatePath('/config/roles')
-    return { success: true as const }
+    revalidatePath('/config/roles');
+    return { success: true as const };
   } catch (error) {
     return {
       success: false as const,
       error: error instanceof Error ? error.message : 'Unknown error',
-    }
+    };
   }
 }

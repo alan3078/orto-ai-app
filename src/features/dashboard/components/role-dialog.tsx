@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from '@/components/ui/dialog';
 import {
   Form,
   FormControl,
@@ -19,9 +19,9 @@ import {
   FormLabel,
   FormMessage,
   FormDescription,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const roleSchema = z.object({
   name: z
@@ -34,50 +34,44 @@ const roleSchema = z.object({
     .int('Order must be an integer')
     .min(1, 'Order must be at least 1')
     .max(100, 'Order must be 100 or less'),
-})
+});
 
-type RoleFormData = z.infer<typeof roleSchema>
+type RoleFormData = z.infer<typeof roleSchema>;
 
 interface RoleDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  role?: { id: string; name: string; order: number } | null
-  onSubmit: (data: { name: string; order: number }) => void
-  isPending: boolean
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  role?: { id: string; name: string; order: number } | null;
+  onSubmit: (data: { name: string; order: number }) => void;
+  isPending: boolean;
 }
 
-export function RoleDialog({
-  open,
-  onOpenChange,
-  role,
-  onSubmit,
-  isPending,
-}: RoleDialogProps) {
+export function RoleDialog({ open, onOpenChange, role, onSubmit, isPending }: RoleDialogProps) {
   const form = useForm<RoleFormData>({
     resolver: zodResolver(roleSchema),
     defaultValues: {
       name: '',
       order: 1,
     },
-  })
+  });
 
   useEffect(() => {
     if (open && role) {
       form.reset({
         name: role.name,
         order: role.order,
-      })
+      });
     } else if (open && !role) {
       form.reset({
         name: '',
         order: 1,
-      })
+      });
     }
-  }, [open, role, form])
+  }, [open, role, form]);
 
   const handleSubmit = (data: RoleFormData) => {
-    onSubmit(data)
-  }
+    onSubmit(data);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,23 +86,21 @@ export function RoleDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
             <FormField
               control={form.control}
-              name="name"
+              name='name'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Role Name</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="IC"
+                      placeholder='IC'
                       {...field}
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                     />
                   </FormControl>
-                  <FormDescription>
-                    Uppercase letters, numbers, or underscores only
-                  </FormDescription>
+                  <FormDescription>Uppercase letters, numbers, or underscores only</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -116,41 +108,37 @@ export function RoleDialog({
 
             <FormField
               control={form.control}
-              name="order"
+              name='order'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Priority Order</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
-                      placeholder="1"
+                      type='number'
+                      placeholder='1'
                       {...field}
                       onChange={(e) =>
-                        field.onChange(
-                          e.target.value ? parseInt(e.target.value) : undefined
-                        )
+                        field.onChange(e.target.value ? parseInt(e.target.value) : undefined)
                       }
                       value={field.value ?? ''}
                     />
                   </FormControl>
-                  <FormDescription>
-                    Lower numbers = higher priority (1 is highest)
-                  </FormDescription>
+                  <FormDescription>Lower numbers = higher priority (1 is highest)</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="flex justify-end gap-2">
+            <div className='flex justify-end gap-2'>
               <Button
-                type="button"
-                variant="outline"
+                type='button'
+                variant='outline'
                 onClick={() => onOpenChange(false)}
                 disabled={isPending}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type='submit' disabled={isPending}>
                 {isPending ? 'Saving...' : role ? 'Update' : 'Create'}
               </Button>
             </div>
@@ -158,5 +146,5 @@ export function RoleDialog({
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -156,20 +156,21 @@ The project uses **Prisma 7** with the PostgreSQL driver adapter for optimal Nex
 
 ```typescript
 // src/lib/prisma.ts
-import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { Pool } from 'pg'
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-})
+});
 
-const adapter = new PrismaPg(pool)
+const adapter = new PrismaPg(pool);
 
-export const prisma = new PrismaClient({ adapter })
+export const prisma = new PrismaClient({ adapter });
 ```
 
 This setup ensures:
+
 - ✅ Serverless compatibility (Vercel, AWS Lambda)
 - ✅ Connection pooling
 - ✅ Proper Next.js integration
@@ -196,6 +197,7 @@ Components are installed to `src/components/ui/` and can be customized directly.
 ## 📚 Key Features
 
 ### Implemented
+
 - ✅ Next.js 15 App Router setup
 - ✅ PostgreSQL database with Prisma ORM
 - ✅ Prisma 7 with PG adapter
@@ -205,6 +207,7 @@ Components are installed to `src/components/ui/` and can be customized directly.
 - ✅ User management (CRUD)
 
 ### In Development
+
 - 🚧 NextAuth.js authentication
 - 🚧 Staff management module
 - 🚧 Constraint configuration UI
@@ -214,17 +217,19 @@ Components are installed to `src/components/ui/` and can be customized directly.
 
 ## 🧪 Testing Solver Integration
 
-The application integrates with a Python solver engine to generate optimal schedules. 
+The application integrates with a Python solver engine to generate optimal schedules.
 
 ### Prerequisites
 
-1. **Python Engine Running**: 
+1. **Python Engine Running**:
+
    ```bash
    cd ../engine
    uv run uvicorn src.main:app --reload
    ```
 
 2. **Database Seeded**:
+
    ```bash
    npx prisma db seed
    ```
@@ -243,6 +248,7 @@ npx tsx scripts/test-solver-integration.ts
 ```
 
 **Expected Output**:
+
 ```
 🧪 Testing Solver Integration Service
 ============================================================
@@ -310,6 +316,7 @@ PostgreSQL Database
 ```
 
 **Key Files**:
+
 - `/src/services/solver-integration.service.ts` - Main integration logic
 - `/src/lib/validations/solver.ts` - Zod schemas for API validation
 - `/src/app/actions/generate-roster.action.ts` - Next.js Server Actions
@@ -402,32 +409,43 @@ npm run start
 **Last Updated**: 20 November 2025
 
 # DB Command setup
+
 # 0) Use the correct Node version
+
 nvm use 22
 
 # 1) Ensure DATABASE_URL is set
+
 echo $DATABASE_URL
 
 # 2) Remove existing migrations (dev-only reset)
+
 rm -rf prisma/migrations
 
 # 3) Clear Prisma Client cache to avoid stale schema issues
+
 rm -rf node_modules/.prisma generated .next
 
 # 4) Drop and recreate the database schema via Prisma
-#    This will drop all data in the target database/schema
+
+# This will drop all data in the target database/schema
+
 npx prisma migrate reset --force
 
 # 5) Generate a fresh initial migration from the current schema and apply it
+
 npx prisma migrate dev --name init
 
 # 6) Generate Prisma Client (migrate dev usually does this, run to be sure)
+
 npx prisma generate
 
 # 7) Seed (uses your updated seed.ts; set RESET_SYSTEM_CONFIG=true to overwrite values)
+
 RESET_SYSTEM_CONFIG=true npx prisma db seed
 
 # Note: The seed file uses APN shift type (states: 0=Off, 1=Afternoon, 2=PM, 3=Night)
+
 # Constraints are common rules applied to ALL staff, not per-employee specific
 
 ---

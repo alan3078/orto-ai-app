@@ -44,19 +44,19 @@ The system is split into **two independent services**:
 
 ## 📦 Stack Summary
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| **Frontend** | Next.js | Latest (15.x) | React framework for UI |
-| **Language** | TypeScript | 5.x | Type-safe JavaScript |
-| **Backend API** | Next.js API Routes | - | REST endpoints for web app |
-| **Database** | PostgreSQL | 16.x | Relational data storage |
-| **ORM** | Prisma | 7.x | Type-safe database access |
-| **DB Driver** | @prisma/adapter-pg + pg | Latest | PostgreSQL driver adapter |
-| **Auth** | NextAuth.js (Auth.js) | 5.x | Authentication & sessions |
-| **Validation** | Zod | 3.x | Runtime schema validation |
-| **UI Components** | shadcn/ui | Latest | Accessible component library |
-| **Solver Engine** | Python + FastAPI | 3.10+ / 0.104+ | Mathematical optimization API |
-| **Solver Library** | Google OR-Tools | 9.8+ | Constraint programming |
+| Layer              | Technology              | Version        | Purpose                       |
+| ------------------ | ----------------------- | -------------- | ----------------------------- |
+| **Frontend**       | Next.js                 | Latest (15.x)  | React framework for UI        |
+| **Language**       | TypeScript              | 5.x            | Type-safe JavaScript          |
+| **Backend API**    | Next.js API Routes      | -              | REST endpoints for web app    |
+| **Database**       | PostgreSQL              | 16.x           | Relational data storage       |
+| **ORM**            | Prisma                  | 7.x            | Type-safe database access     |
+| **DB Driver**      | @prisma/adapter-pg + pg | Latest         | PostgreSQL driver adapter     |
+| **Auth**           | NextAuth.js (Auth.js)   | 5.x            | Authentication & sessions     |
+| **Validation**     | Zod                     | 3.x            | Runtime schema validation     |
+| **UI Components**  | shadcn/ui               | Latest         | Accessible component library  |
+| **Solver Engine**  | Python + FastAPI        | 3.10+ / 0.104+ | Mathematical optimization API |
+| **Solver Library** | Google OR-Tools         | 9.8+           | Constraint programming        |
 
 ---
 
@@ -65,6 +65,7 @@ The system is split into **two independent services**:
 ### Core Stack
 
 #### Framework: **Next.js** (Latest)
+
 - **Why**: Industry-standard React framework with built-in SSR, routing, and API routes
 - **Role**: Serves as both Frontend UI and Main Backend API
 - **Features Used**:
@@ -74,17 +75,20 @@ The system is split into **two independent services**:
   - Middleware for auth protection
 
 #### Language: **TypeScript** (5.x)
+
 - **Why**: Essential for complex business logic; catches errors at compile-time
 - **Strictness**: `strict: true` in `tsconfig.json`
 - **Usage**: 100% of codebase (no `.js` files)
 
 #### Database: **PostgreSQL** (16.x)
+
 - **Why**: Reliable relational database for structured data
 - **Development**: Local Docker container
 - **Production Options**: Supabase or Neon (to be decided)
 - **Connection**: Via Prisma ORM
 
 #### ORM: **Prisma** (7.x)
+
 - **Why**: Type-safe database queries, excellent TypeScript integration
 - **Driver Adapter**: Uses `@prisma/adapter-pg` with native `pg` driver for optimal Next.js compatibility
 - **Features**:
@@ -96,6 +100,7 @@ The system is split into **two independent services**:
 - **Client Setup**: Connection pool with adapter pattern for serverless compatibility
 
 #### Authentication: **NextAuth.js** (Auth.js v5)
+
 - **Why**: Battle-tested auth solution for Next.js
 - **Providers**:
   - Google OAuth
@@ -104,6 +109,7 @@ The system is split into **two independent services**:
 - **Session Strategy**: JWT + Database hybrid
 
 #### Validation: **Zod** (3.x)
+
 - **Why**: Runtime type validation with TypeScript inference
 - **Usage**:
   - API input validation
@@ -112,6 +118,7 @@ The system is split into **two independent services**:
 - **Example**: Staff name must be non-empty, constraint values must be positive
 
 #### UI Components: **shadcn/ui** (Latest)
+
 - **Why**: High-quality, accessible component library built on Radix UI primitives
 - **Philosophy**: Copy-paste components (not npm package), full ownership of code
 - **Styling**: Uses Tailwind CSS for customization
@@ -178,14 +185,14 @@ The system is split into **two independent services**:
 
 ### Development Tools (Web)
 
-| Tool | Purpose |
-|------|---------|
-| **nvm** | Node version manager (ensures v20.11.0) |
-| **pnpm** | Fast package manager (alternative: npm/yarn) |
-| **ESLint** | Code linting |
-| **Prettier** | Code formatting |
-| **Tailwind CSS** | Utility-first CSS framework |
-| **shadcn/ui** | Component library built on Radix UI |
+| Tool             | Purpose                                      |
+| ---------------- | -------------------------------------------- |
+| **nvm**          | Node version manager (ensures v20.11.0)      |
+| **pnpm**         | Fast package manager (alternative: npm/yarn) |
+| **ESLint**       | Code linting                                 |
+| **Prettier**     | Code formatting                              |
+| **Tailwind CSS** | Utility-first CSS framework                  |
+| **shadcn/ui**    | Component library built on Radix UI          |
 
 ---
 
@@ -194,11 +201,13 @@ The system is split into **two independent services**:
 ### Core Stack
 
 #### Language: **Python** (3.10+)
+
 - **Why**: Native support for OR-Tools; excellent for mathematical operations
 - **Version Management**: `uv` (fast Python package manager)
 - **Version File**: `.python-version` (managed by `uv`)
 
 #### Framework: **FastAPI** (0.104+)
+
 - **Why**: Modern async Python web framework with auto-generated docs
 - **Features**:
   - Automatic OpenAPI/Swagger docs
@@ -208,6 +217,7 @@ The system is split into **two independent services**:
   - `POST /api/v1/solve` - Main solver endpoint
 
 #### Solver: **Google OR-Tools** (9.8+)
+
 - **Why**: Industry-leading constraint programming library
 - **Module Used**: `ortools.sat.python.cp_model` (CP-SAT Solver)
 - **Capabilities**:
@@ -217,6 +227,7 @@ The system is split into **two independent services**:
 - **License**: Apache 2.0 (free for commercial use)
 
 #### Validation: **Pydantic** (2.x)
+
 - **Why**: Data validation using Python type hints
 - **Usage**:
   - API request/response models
@@ -262,14 +273,14 @@ The system is split into **two independent services**:
 
 ### Development Tools (Engine)
 
-| Tool | Purpose |
-|------|---------|
-| **uv** | Python package & environment manager |
-| **pytest** | Testing framework |
-| **black** | Code formatter |
-| **ruff** | Fast Python linter |
-| **mypy** | Static type checker |
-| **uvicorn** | ASGI server for FastAPI |
+| Tool        | Purpose                              |
+| ----------- | ------------------------------------ |
+| **uv**      | Python package & environment manager |
+| **pytest**  | Testing framework                    |
+| **black**   | Code formatter                       |
+| **ruff**    | Fast Python linter                   |
+| **mypy**    | Static type checker                  |
+| **uvicorn** | ASGI server for FastAPI              |
 
 ---
 
@@ -321,12 +332,14 @@ The system is split into **two independent services**:
 ## 🔐 Security Considerations
 
 ### Web Application
+
 - **Auth**: NextAuth.js handles OAuth flows and session management
 - **CSRF Protection**: Built-in via Next.js
 - **Environment Variables**: Never commit `.env.local` to git
 - **SQL Injection**: Protected by Prisma (parameterized queries)
 
 ### Solver Engine
+
 - **No Code Injection**: Uses safe JSON parsing (no `exec()` or `eval()`)
 - **Input Validation**: Pydantic validates all inputs
 - **Rate Limiting**: To be implemented in production
@@ -398,12 +411,14 @@ Next.js App (localhost:3000)
 ## 🎯 Version Management
 
 ### Node.js (Web)
+
 ```bash
 # .nvmrc file contents
 v20.11.0
 ```
 
 ### Python (Engine)
+
 ```bash
 # Managed by uv, specified in pyproject.toml
 requires-python = ">=3.10"
@@ -484,16 +499,19 @@ dev = [
 ## 🔄 Future Considerations
 
 ### Scalability
+
 - **Web**: Deploy on Vercel or AWS with auto-scaling
 - **Engine**: Deploy as containerized service (Docker + K8s)
 - **Database**: Migrate to managed Postgres (Supabase/Neon) with connection pooling
 
 ### Monitoring
+
 - **Web**: Vercel Analytics or Sentry
 - **Engine**: Prometheus + Grafana for solver performance metrics
 - **Database**: pganalyze or built-in Supabase metrics
 
 ### CI/CD
+
 - **Testing**: GitHub Actions for automated tests
 - **Deployment**: Automated deployment on merge to `main`
 - **Database Migrations**: Automated via Prisma Migrate

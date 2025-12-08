@@ -1,12 +1,9 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { sortStaff } from '@/lib/staff-sort'
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { sortStaff } from '@/lib/staff-sort';
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const group = await prisma.staffGroup.findUnique({
       where: { id },
@@ -15,35 +12,32 @@ export async function GET(
           include: { staffRoles: { include: { role: true } } },
         },
       },
-    })
-    if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 })
+    });
+    if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
     const sorted = {
       ...group,
       staff: sortStaff(group.staff as any),
-    }
-    return NextResponse.json(sorted)
+    };
+    return NextResponse.json(sorted);
   } catch (error) {
-    console.error('Failed to fetch staff group:', error)
-    return NextResponse.json({ error: 'Failed to fetch staff group' }, { status: 500 })
+    console.error('Failed to fetch staff group:', error);
+    return NextResponse.json({ error: 'Failed to fetch staff group' }, { status: 500 });
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
-    const body = await request.json()
+    const body = await request.json();
     const { name, description, addStaffIds, removeStaffIds } = body as {
-      name?: string
-      description?: string
-      addStaffIds?: string[]
-      removeStaffIds?: string[]
-    }
+      name?: string;
+      description?: string;
+      addStaffIds?: string[];
+      removeStaffIds?: string[];
+    };
 
-    const existing = await prisma.staffGroup.findUnique({ where: { id } })
-    if (!existing) return NextResponse.json({ error: 'Group not found' }, { status: 404 })
+    const existing = await prisma.staffGroup.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
 
     // Update group metadata
     const updatedGroup = await prisma.staffGroup.update({
@@ -52,14 +46,14 @@ export async function PATCH(
         name: name ?? existing.name,
         description: description ?? existing.description,
       },
-    })
+    });
 
     // Add staff (set staffGroupId)
     if (addStaffIds && addStaffIds.length > 0) {
       await prisma.staff.updateMany({
         where: { id: { in: addStaffIds } },
         data: { staffGroupId: id },
-      })
+      });
     }
 
     // Remove staff (null staffGroupId)
@@ -67,30 +61,27 @@ export async function PATCH(
       await prisma.staff.updateMany({
         where: { id: { in: removeStaffIds } },
         data: { staffGroupId: null },
-      })
+      });
     }
 
     const result = await prisma.staffGroup.findUnique({
       where: { id },
       include: { staff: true },
-    })
-    return NextResponse.json(result)
+    });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Failed to update staff group:', error)
-    return NextResponse.json({ error: 'Failed to update staff group' }, { status: 500 })
+    console.error('Failed to update staff group:', error);
+    return NextResponse.json({ error: 'Failed to update staff group' }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
-    await prisma.staffGroup.delete({ where: { id } })
-    return NextResponse.json({ success: true })
+    await prisma.staffGroup.delete({ where: { id } });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete staff group:', error)
-    return NextResponse.json({ error: 'Failed to delete staff group' }, { status: 500 })
+    console.error('Failed to delete staff group:', error);
+    return NextResponse.json({ error: 'Failed to delete staff group' }, { status: 500 });
   }
 }

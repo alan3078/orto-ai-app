@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -10,48 +10,48 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
+} from '@/components/ui/form';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { useStaff } from '../hooks/use-staff'
-import { useAddConstraint } from '../hooks/use-constraints'
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useStaff } from '../hooks/use-staff';
+import { useAddConstraint } from '../hooks/use-constraints';
 import {
   pointConstraintFormSchema,
   verticalSumConstraintFormSchema,
   type PointConstraintFormDto,
   type VerticalSumConstraintFormDto,
-} from '../services/dashboard.service'
+} from '../services/dashboard.service';
 
-import { AIConstraintBuilder } from './ai-constraint-builder'
+import { AIConstraintBuilder } from './ai-constraint-builder';
 
 interface AddConstraintFormProps {
-  type: 'point' | 'vertical_sum' | 'ai'
-  onCancel: () => void
-  onSuccess: () => void
+  type: 'point' | 'vertical_sum' | 'ai';
+  onCancel: () => void;
+  onSuccess: () => void;
 }
 
 export function AddConstraintForm({ type, onCancel, onSuccess }: AddConstraintFormProps) {
-  const { data: staff } = useStaff()
+  const { data: staff } = useStaff();
   // addConstraint retained for legacy forms only
   // legacy hooks retained for point/vertical forms
 
   if (type === 'point') {
-    return <PointConstraintForm staff={staff || []} onCancel={onCancel} onSuccess={onSuccess} />
+    return <PointConstraintForm staff={staff || []} onCancel={onCancel} onSuccess={onSuccess} />;
   }
   if (type === 'vertical_sum') {
-    return <VerticalSumConstraintForm onCancel={onCancel} onSuccess={onSuccess} />
+    return <VerticalSumConstraintForm onCancel={onCancel} onSuccess={onSuccess} />;
   }
   if (type === 'ai') {
-    return <AIConstraintBuilder onCancel={onCancel} onSuccess={onSuccess} />
+    return <AIConstraintBuilder onCancel={onCancel} onSuccess={onSuccess} />;
   }
-  return null
+  return null;
 }
 
 // Point Constraint Form
@@ -60,11 +60,15 @@ function PointConstraintForm({
   onCancel,
   onSuccess,
 }: {
-  staff: Array<{ id: string; visibleId: string; user?: { name: string } | null }>
-  onCancel: () => void
-  onSuccess: () => void
+  staff: Array<{
+    id: string;
+    visibleId: string;
+    user?: { name: string } | null;
+  }>;
+  onCancel: () => void;
+  onSuccess: () => void;
 }) {
-  const addConstraint = useAddConstraint()
+  const addConstraint = useAddConstraint();
 
   const form = useForm<PointConstraintFormDto>({
     resolver: zodResolver(pointConstraintFormSchema),
@@ -76,13 +80,13 @@ function PointConstraintForm({
       state: 0,
       description: '',
     },
-  })
+  });
 
   const onSubmit = async (data: PointConstraintFormDto) => {
     try {
       // Find staff to get visibleId
-      const selectedStaff = staff.find((s) => s.id === data.staffId)
-      if (!selectedStaff) throw new Error('Staff not found')
+      const selectedStaff = staff.find((s) => s.id === data.staffId);
+      if (!selectedStaff) throw new Error('Staff not found');
 
       await addConstraint.mutateAsync({
         name: data.name,
@@ -93,29 +97,29 @@ function PointConstraintForm({
           state: data.state,
         },
         description: data.description,
-      })
-      onSuccess()
+      });
+      onSuccess();
     } catch {
       /* handled by hook */
     }
-  }
+  };
 
   return (
-    <Card className="border-2 border-primary">
+    <Card className='border-2 border-primary'>
       <CardHeader>
-        <CardTitle className="text-base">Add Point Constraint (Day Off)</CardTitle>
+        <CardTitle className='text-base'>Add Point Constraint (Day Off)</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-3'>
             <FormField
               control={form.control}
-              name="name"
+              name='name'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Constraint Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Alice Monday Off" {...field} />
+                    <Input placeholder='e.g., Alice Monday Off' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -124,14 +128,14 @@ function PointConstraintForm({
 
             <FormField
               control={form.control}
-              name="staffId"
+              name='staffId'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Staff Member</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select staff" />
+                        <SelectValue placeholder='Select staff' />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -149,7 +153,7 @@ function PointConstraintForm({
 
             <FormField
               control={form.control}
-              name="timeSlot"
+              name='timeSlot'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Day</FormLabel>
@@ -177,7 +181,7 @@ function PointConstraintForm({
 
             <FormField
               control={form.control}
-              name="state"
+              name='state'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Required State</FormLabel>
@@ -191,9 +195,9 @@ function PointConstraintForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="0">Off</SelectItem>
-                      <SelectItem value="1">Work</SelectItem>
-                      <SelectItem value="2">OnCall</SelectItem>
+                      <SelectItem value='0'>Off</SelectItem>
+                      <SelectItem value='1'>Work</SelectItem>
+                      <SelectItem value='2'>OnCall</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -201,11 +205,11 @@ function PointConstraintForm({
               )}
             />
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm">
+            <div className='flex justify-end gap-2 pt-2'>
+              <Button type='button' variant='outline' onClick={onCancel} size='sm'>
                 Cancel
               </Button>
-              <Button type="submit" disabled={addConstraint.isPending} size="sm">
+              <Button type='submit' disabled={addConstraint.isPending} size='sm'>
                 {addConstraint.isPending ? 'Adding...' : 'Add'}
               </Button>
             </div>
@@ -213,7 +217,7 @@ function PointConstraintForm({
         </Form>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 // Vertical Sum Constraint Form
@@ -221,10 +225,10 @@ function VerticalSumConstraintForm({
   onCancel,
   onSuccess,
 }: {
-  onCancel: () => void
-  onSuccess: () => void
+  onCancel: () => void;
+  onSuccess: () => void;
 }) {
-  const addConstraint = useAddConstraint()
+  const addConstraint = useAddConstraint();
 
   const form = useForm<VerticalSumConstraintFormDto>({
     resolver: zodResolver(verticalSumConstraintFormSchema),
@@ -237,7 +241,7 @@ function VerticalSumConstraintForm({
       value: 2,
       description: '',
     },
-  })
+  });
 
   const onSubmit = async (data: VerticalSumConstraintFormDto) => {
     try {
@@ -251,29 +255,29 @@ function VerticalSumConstraintForm({
           value: data.value,
         },
         description: data.description,
-      })
-      onSuccess()
+      });
+      onSuccess();
     } catch {
       /* handled by hook */
     }
-  }
+  };
 
   return (
-    <Card className="border-2 border-primary">
+    <Card className='border-2 border-primary'>
       <CardHeader>
-        <CardTitle className="text-base">Add Vertical Sum Constraint (Min/Max Workers)</CardTitle>
+        <CardTitle className='text-base'>Add Vertical Sum Constraint (Min/Max Workers)</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-3'>
             <FormField
               control={form.control}
-              name="name"
+              name='name'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Constraint Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Min 3 Workers Daily" {...field} />
+                    <Input placeholder='e.g., Min 3 Workers Daily' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -282,7 +286,7 @@ function VerticalSumConstraintForm({
 
             <FormField
               control={form.control}
-              name="timeSlotValue"
+              name='timeSlotValue'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Apply To</FormLabel>
@@ -296,7 +300,7 @@ function VerticalSumConstraintForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="-1">All Days</SelectItem>
+                      <SelectItem value='-1'>All Days</SelectItem>
                       {[0, 1, 2, 3, 4, 5, 6].map((day) => (
                         <SelectItem key={day} value={day.toString()}>
                           Day {day} Only
@@ -309,10 +313,10 @@ function VerticalSumConstraintForm({
               )}
             />
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className='grid grid-cols-3 gap-2'>
               <FormField
                 control={form.control}
-                name="operator"
+                name='operator'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Operator</FormLabel>
@@ -323,9 +327,9 @@ function VerticalSumConstraintForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value=">=">{'>='} At least</SelectItem>
-                        <SelectItem value="<=">{'<='} At most</SelectItem>
-                        <SelectItem value="==">== Exactly</SelectItem>
+                        <SelectItem value='>='>{'>='} At least</SelectItem>
+                        <SelectItem value='<='>{'<='} At most</SelectItem>
+                        <SelectItem value='=='>== Exactly</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -335,14 +339,14 @@ function VerticalSumConstraintForm({
 
               <FormField
                 control={form.control}
-                name="value"
+                name='value'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Count</FormLabel>
                     <FormControl>
                       <Input
-                        type="number"
-                        min="0"
+                        type='number'
+                        min='0'
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value))}
                       />
@@ -354,7 +358,7 @@ function VerticalSumConstraintForm({
 
               <FormField
                 control={form.control}
-                name="targetState"
+                name='targetState'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>State</FormLabel>
@@ -368,8 +372,8 @@ function VerticalSumConstraintForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="1">Work</SelectItem>
-                        <SelectItem value="2">OnCall</SelectItem>
+                        <SelectItem value='1'>Work</SelectItem>
+                        <SelectItem value='2'>OnCall</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -378,11 +382,11 @@ function VerticalSumConstraintForm({
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm">
+            <div className='flex justify-end gap-2 pt-2'>
+              <Button type='button' variant='outline' onClick={onCancel} size='sm'>
                 Cancel
               </Button>
-              <Button type="submit" disabled={addConstraint.isPending} size="sm">
+              <Button type='submit' disabled={addConstraint.isPending} size='sm'>
                 {addConstraint.isPending ? 'Adding...' : 'Add'}
               </Button>
             </div>
@@ -390,5 +394,5 @@ function VerticalSumConstraintForm({
         </Form>
       </CardContent>
     </Card>
-  )
+  );
 }
